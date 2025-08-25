@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Element {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+
+  asLeft    Recipe[]  @relation("left")
+  asRight   Recipe[]  @relation("right")
+  asResult  Recipe[]  @relation("result")
+}
+
+model Recipe {
+  id        Int      @id @default(autoincrement())
+  leftId    Int
+  rightId   Int
+  resultId  Int
+  createdAt DateTime @default(now())
+
+  left      Element  @relation("left",   fields: [leftId],   references: [id])
+  right     Element  @relation("right",  fields: [rightId],  references: [id])
+  result    Element  @relation("result", fields: [resultId], references: [id])
+
+  @@index([leftId, rightId])
+  @@index([resultId])
+}
