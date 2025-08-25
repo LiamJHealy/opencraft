@@ -1,14 +1,14 @@
 import { CombineInput, CombineOutput, CombineProvider } from "./types";
 import { normalizeName } from "@/lib/normalize";
 
-// Small hand-written dictionary for nice demos
+// ✅ Keys are alphabetically sorted: "air::earth", "fire::water", etc.
 const DICT: Record<string, string> = {
-  "water::fire": "steam",
-  "earth::water": "mud",
+  "air::earth": "dust",
+  "air::fire": "energy",
+  "air::water": "rain",
   "earth::fire": "lava",
-  "fire::air": "energy",
-  "water::air": "rain",
-  "earth::air": "dust",
+  "earth::water": "mud",
+  "fire::water": "steam",
 };
 
 function key(a: string, b: string) {
@@ -18,12 +18,11 @@ function key(a: string, b: string) {
 
 export class MockProvider implements CombineProvider {
   async combine({ left, right }: CombineInput): Promise<CombineOutput> {
-    const k = key(left, right);
-    const dictHit = DICT[k];
+    const dictHit = DICT[key(left, right)];
     if (dictHit) {
       return { result: normalizeName(dictHit), reasoning: "mock:dict", provider: "mock" };
     }
-    // Fallback deterministic pattern
+    // Fallback if not in DICT
     return { result: normalizeName(`${left} ${right}`), reasoning: "mock:fallback", provider: "mock" };
   }
 }
