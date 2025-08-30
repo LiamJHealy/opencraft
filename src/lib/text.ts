@@ -5,10 +5,9 @@ export function pairKey(a: string, b: string) {
   return `${x}::${y}`;
 }
 
+// Proper Case (only first character uppercase)
 export function toDisplayName(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .map((w) => w[0]?.toUpperCase() + w.slice(1))
-    .join(" ");
+  const n = name.trim();
+  if (!n) return n;
+  return n[0].toUpperCase() + n.slice(1).toLowerCase();
 }
