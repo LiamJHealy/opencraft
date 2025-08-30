@@ -1,9 +1,9 @@
 APP:
------------------------------------------
+------------------------------------------
 Run App: npm run dev
 
 PRISMA:
------------------------------------------
+------------------------------------------
 Open Prisma Studio: npx prisma studio
 
 RESET AND TEST:
@@ -33,3 +33,9 @@ Invoke-WebRequest http://localhost:3000/api/combine `
   -Method POST `
   -Body (@{left="water"; right="fire"} | ConvertTo-Json) `
   -ContentType "application/json"
+
+GIT PUSHES
+------------------------------------------
+git add .
+git commit -m "ADD DESCRIPTION"
+git push
