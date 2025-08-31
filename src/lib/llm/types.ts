@@ -1,4 +1,5 @@
 export type CombineInput = { left: string; right: string };
+
 export type CombineOutput = {
   result: string;        // canonicalized, e.g. "steam"
   reasoning?: string;    // optional debug

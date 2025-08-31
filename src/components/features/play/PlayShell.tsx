@@ -30,14 +30,16 @@ export default function PlayShell() {
       {/* Header: 5% */}
       <div className="h-[5vh] border-b bg-white flex items-center px-4 justify-between">
         <Logo className="text-2xl md:text-3xl" />
+
         <button
-            onClick={onRestart}
-            disabled={busy}
-            className="rounded-md border border-zinc-300 bg-white px-3 py-1 text-sm hover:bg-zinc-50 disabled:opacity-50"
-            title="Reset database to starter words and clear the canvas"
+          onClick={() => setSurfaceKey((k) => k + 1)}
+          className="rounded-md border border-zinc-300 bg-white px-3 py-1 text-sm hover:bg-zinc-50"
+          title="Reset this session (keep DB)"
         >
-            {busy ? "Restarting…" : "Restart"}
+          Reset
         </button>
+
+
         </div>
 
       {/* Optional inline error banner */}

@@ -12,22 +12,38 @@ model Element {
   name      String    @unique
   createdAt DateTime  @default(now())
 
+  // Relations back to Recipe
   asLeft    Recipe[]  @relation("left")
   asRight   Recipe[]  @relation("right")
   asResult  Recipe[]  @relation("result")
 }
 
+enum RecipeSource {
+  CANON
+  OLLAMA
+  MOCK
+  MANUAL
+}
+
 model Recipe {
-  id        Int      @id @default(autoincrement())
+  id        Int          @id @default(autoincrement())
   leftId    Int
   rightId   Int
   resultId  Int
-  createdAt DateTime @default(now())
+  createdAt DateTime     @default(now())
 
-  left      Element  @relation("left",   fields: [leftId],   references: [id])
-  right     Element  @relation("right",  fields: [rightId],  references: [id])
-  result    Element  @relation("result", fields: [resultId], references: [id])
+  // When an Element is deleted in Studio, its recipes will be removed too.
+  left      Element      @relation("left",   fields: [leftId],   references: [id], onDelete: Cascade)
+  right     Element      @relation("right",  fields: [rightId],  references: [id], onDelete: Cascade)
+  result    Element      @relation("result", fields: [resultId], references: [id], onDelete: Cascade)
 
+  // NEW: provenance + free-text reasoning from provider
+  source    RecipeSource @default(MANUAL)
+  reasoning String?      // <-- no @db.Text for SQLite
+
+  // Helpful indexes/uniqueness:
   @@index([leftId, rightId])
   @@index([resultId])
+  // Prevent exact duplicate triples (order-insensitive duplicates still prevented in app logic)
+  @@unique([leftId, rightId, resultId])
 }
