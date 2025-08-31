@@ -1,49 +1,73 @@
 import { CombineInput, CombineOutput, CombineProvider } from "./types";
 import { normalizeName } from "@/lib/normalize";
 
-const OLLAMA_URL = process.env.OLLAMA_URL || "http://localhost:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || "mistral";
+function buildPrompt(left: string, right: string) {
+  // Keep this tight/deterministic so models return a single short answer.
+  return `You are an alchemy crafting assistant. Combine two base words into a single, concise result used in a crafting game.
 
-const PROMPT = (left: string, right: string) => `
-You are a creative but succinct "element combiner". Combine two concepts into a single short result.
 Rules:
-- Return ONLY the result word or very short phrase (no punctuation, no quotes, no extra text).
-- Keep it SFW and neutral.
-- Prefer noun-like results.
-Left: "${left}"
-Right: "${right}"
-Result:
-`.trim();
+- Output ONLY the result word or very short phrase (max 2 words). No punctuation, no explanations.
+- Be consistent with common crafting logic (e.g., fire + water -> steam).
+- If you truly cannot infer a sensible result, output: Unknown
+
+Inputs:
+left: ${left}
+right: ${right}
+
+Result:`;
+}
+
+async function ollamaGenerate(url: string, model: string, prompt: string, signal?: AbortSignal) {
+  const res = await fetch(`${url}/api/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model,
+      prompt,
+      stream: false,
+      options: {
+        temperature: 0.2,
+        top_p: 0.9,
+        repeat_penalty: 1.1,
+        stop: ["\n"], // stop at first newline
+      },
+    }),
+    signal,
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(`ollama error ${res.status}: ${txt}`);
+  }
+  const data = await res.json();
+  // Ollama /api/generate returns { response: "..." }
+  return String(data.response ?? "");
+}
+
+function postProcess(raw: string) {
+  // Trim, strip quotes/backticks, keep only first line and 2 words max
+  let out = raw.trim().replace(/^["'`]|["'`]$/g, "");
+  out = out.split("\n")[0].trim();
+  // reduce to max 2 words
+  const parts = out.split(/\s+/).slice(0, 2);
+  out = parts.join(" ");
+  // common "Unknown" guard
+  if (/^unknown$/i.test(out) || out.length === 0) return null;
+  return normalizeName(out);
+}
 
 export class OllamaProvider implements CombineProvider {
+  constructor(private url = process.env.OLLAMA_URL!, private model = process.env.OLLAMA_MODEL!) {}
   async combine({ left, right }: CombineInput): Promise<CombineOutput> {
-    const resp = await fetch(`${OLLAMA_URL}/api/generate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        prompt: PROMPT(left, right),
-        stream: false,
-        options: {
-          temperature: 0.2,
-          top_p: 0.9,
-          repeat_penalty: 1.1,
-        },
-      }),
-      // Optional timeout
-      signal: AbortSignal.timeout?.(20_000),
-    });
-
-    if (!resp.ok) {
-      throw new Error(`Ollama error: ${resp.status} ${resp.statusText}`);
+    const controller = new AbortController();
+    const t = setTimeout(() => controller.abort(), 15_000); // 15s timeout
+    try {
+      const prompt = buildPrompt(left, right);
+      const raw = await ollamaGenerate(this.url, this.model, prompt, controller.signal);
+      const parsed = postProcess(raw);
+      const result = parsed ?? normalizeName(`${left} ${right}`); // fallback
+      return { result, reasoning: parsed ? "ollama" : "ollama:fallback", provider: "ollama" };
+    } finally {
+      clearTimeout(t);
     }
-
-    const data = await resp.json(); // { response: "..." }
-    let out = String(data?.response ?? "").trim();
-    // Basic cleanup: remove wrapping quotes/periods
-    out = out.replace(/^["'“”‘’]+|["'“”‘’]+$/g, "").replace(/[.!?]+$/g, "");
-    if (!out) throw new Error("Ollama returned empty result");
-
-    return { result: normalizeName(out), provider: "ollama" };
   }
 }

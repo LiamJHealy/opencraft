@@ -8,8 +8,11 @@ Open Prisma Studio: npx prisma studio
 
 RESET AND TEST:
 ------------------------------------------
-# Reset
-npx prisma migrate reset --force --skip-seed
+# Reset : Drop & recreate using migrations + seed (recommended)
+npx prisma migrate reset --force
+
+# Regenerate Prisma Client (usually automatic, but safe)
+npx prisma generate
 
 # Start dev
 npm run dev
