@@ -45,6 +45,8 @@ GIT UPDATES
 git checkout main
 git pull origin main
 git checkout -b feat/<your-change>
-# ...work, commit...
+# ...work
+git add .
+git commit -m "ADD DESCRIPTION"
 git push -u origin feat/<your-change>
 # open PR -> Squash & merge -> delete branch
