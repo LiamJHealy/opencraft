@@ -5,6 +5,7 @@ import { CatalogTile } from "@/components/ui/CatalogTile";
 import { CanvasTile, CanvasTileData } from "@/components/ui/CanvasTile";
 import { cn } from "@/lib/cn";
 import { normalizeName } from "@/lib/normalize";
+import HexGridCanvas from "@/components/ui/HexGridCanvas";
 
 type ElementRow = { id: number; name: string };
 
@@ -24,7 +25,9 @@ export default function PlaySurface() {
   const [elements, setElements] = useState<ElementRow[]>([]);
   const [loadingList, setLoadingList] = useState(false);
   const [tiles, setTiles] = useState<CanvasTileData[]>([]);
-  const canvasRef = useRef<HTMLDivElement | null>(null);
+  // const canvasRef = useRef<HTMLDivElement | null>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const [hexHighlight, setHexHighlight] = useState<{ x: number; y: number } | null>(null);
 
   // ----- NEW: trash bin UI state/geometry -----
   const [trashHot, setTrashHot] = useState(false);
@@ -77,6 +80,10 @@ export default function PlaySurface() {
   function onCanvasDragOver(e: React.DragEvent) {
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (rect) {
+      setHexHighlight({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    }
   }
 
   async function onCanvasDrop(e: React.DragEvent) {
@@ -132,6 +139,9 @@ export default function PlaySurface() {
         console.error(err);
       }
     }
+
+    setHexHighlight(null);
+
   }
 
   // ----- UPDATED: move & release handlers now get width/height too -----
@@ -150,11 +160,15 @@ export default function PlaySurface() {
     );
     // highlight trash bin if the tile center is inside it
     setTrashHot(isOverTrash(x, y, w, h));
+
+    // 🔥 NEW: drive the hex highlight from the tile center while dragging
+    setHexHighlight({ x: x + w / 2, y: y + h / 2 });
   }
 
   function releaseTile(id: string, x: number, y: number, w: number, h: number) {
     const overTrash = isOverTrash(x, y, w, h);
     setTrashHot(false);
+    setHexHighlight(null);
     if (overTrash) {
       setTiles((prev) => prev.filter((t) => t.id !== id));
     }
@@ -172,12 +186,17 @@ export default function PlaySurface() {
         ref={canvasRef}
         className={cn(
           "relative h-full overflow-hidden p-2",
-          "bg-[radial-gradient(circle_at_20px_20px,_#e9e9eb_1px,_transparent_1px)]",
-          "bg-[length:40px_40px]"
+          // "bg-[radial-gradient(circle_at_20px_20px,_#e9e9eb_1px,_transparent_1px)]",
+          // "bg-[length:40px_40px]",
+          // "bg-white"
         )}
         onDragOver={onCanvasDragOver}
         onDrop={onCanvasDrop}
+        onDragLeave={() => setHexHighlight(null)}
       >
+        {/* HEX OVERLAY */}
+        <HexGridCanvas parentRef={canvasRef} highlight={hexHighlight} />
+
         {/* hint text */}
         {tiles.length === 0 && (
           <div className="absolute inset-0 flex items-center justify-center text-zinc-500">
@@ -193,6 +212,8 @@ export default function PlaySurface() {
             onMove={moveTile}
             onRelease={releaseTile}
             onRemove={removeTile}
+            onHover={(cx, cy) => setHexHighlight({ x: cx, y: cy })}
+            onHoverEnd={() => setHexHighlight(null)}
           />
         ))}
 

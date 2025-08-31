@@ -21,6 +21,10 @@ export function CanvasTile({
   onMove: (id: string, x: number, y: number, w: number, h: number) => void;
   onRelease: (id: string, x: number, y: number, w: number, h: number) => void;
   onRemove: (id: string) => void;
+  onHover?: (cx: number, cy: number) => void;
+  onHoverEnd?: () => void;
+  
+
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -31,6 +35,8 @@ export function CanvasTile({
     const h = ref.current?.offsetHeight ?? 28;
     return { w, h };
   }
+
+  
 
   function onPointerDown(e: React.PointerEvent) {
     const el = ref.current;
@@ -69,7 +75,7 @@ export function CanvasTile({
       ref={ref}
       onContextMenu={onContextMenu}
       className={cn(
-        "absolute inline-flex items-center whitespace-nowrap",
+        "absolute z-10 inline-flex items-center whitespace-nowrap",
         "rounded-xl border border-zinc-500 bg-white px-3 py-1.5 text-sm text-zinc-900",
         "shadow-sm hover:shadow-md transition-shadow select-none touch-none",
         dragging && "ring-2 ring-zinc-400"
