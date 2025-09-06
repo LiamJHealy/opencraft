@@ -10,9 +10,9 @@ datasource db {
 model Element {
   id        Int       @id @default(autoincrement())
   name      String    @unique
+  emoji     String?   
   createdAt DateTime  @default(now())
 
-  // Relations back to Recipe
   asLeft    Recipe[]  @relation("left")
   asRight   Recipe[]  @relation("right")
   asResult  Recipe[]  @relation("result")

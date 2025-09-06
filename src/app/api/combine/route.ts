@@ -10,7 +10,7 @@ function toSource(providerName?: string): $Enums.RecipeSource {
   const p = (providerName || "").toLowerCase();
   if (p === "canon") return "CANON";
   if (p === "ollama") return "OLLAMA";
-  if (p === "mock") return "MOCK";
+  if (p === "mock")   return "MOCK";
   return "MANUAL";
 }
 
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "result too long" }, { status: 400 });
     }
 
-    // 3) Upsert elements + create recipe row (NOW with source + reasoning)
+    // 3) Upsert elements + create recipe row (with source + reasoning)
     const [leftEl, rightEl, resultEl] = await Promise.all([
       getOrCreateElement(leftName),
       getOrCreateElement(rightName),
@@ -79,10 +79,19 @@ export async function POST(request: Request) {
         leftId: leftEl.id,
         rightId: rightEl.id,
         resultId: resultEl.id,
-        source: toSource(providerName),           // ← save provenance
-        reasoning: reasoning ?? null,             // ← save provider reasoning (optional)
+        source: toSource(providerName),    // provenance
+        reasoning: reasoning ?? null,      // provider note
       },
     });
+
+    // 4) Ensure the RESULT element has an emoji (compute once & persist).
+    //    This is non-blocking: any failure here is ignored so combine never fails.
+    try {
+      const { ensureElementEmoji } = await import("@/lib/emoji/select");
+      await ensureElementEmoji(resultEl.name);
+    } catch {
+      // ignore emoji errors
+    }
 
     return Response.json(
       {
