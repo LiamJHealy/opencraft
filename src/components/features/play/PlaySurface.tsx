@@ -5,28 +5,33 @@ import { CatalogTile } from "@/components/ui/CatalogTile";
 import { CanvasTile, CanvasTileData } from "@/components/ui/CanvasTile";
 import { cn } from "@/lib/cn";
 import { normalizeName } from "@/lib/normalize";
+import { emojiFor } from "@/lib/format";
 import HexGridCanvas from "@/components/ui/HexGridCanvas";
 import { STARTERS } from "@/constants/starters";
 
-type ElementRow = { id: number; name: string };
+type ElementRow = { id: number; name: string; emoji?: string };
 
 // helpers
 function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
-  const dx = a.x - b.x;
-  const dy = a.y - b.y;
+  const dx = a.x - b.x, dy = a.y - b.y;
   return Math.hypot(dx, dy);
 }
 function midpoint(a: { x: number; y: number }, b: { x: number; y: number }) {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }
-function uid() {
-  return Math.random().toString(36).slice(2);
-}
+function uid() { return Math.random().toString(36).slice(2); }
 
 export default function PlaySurface() {
-  // 🔹 Session-only catalog
+  // STARTERS may be readonly -> spread into mutable array
+  const starterNames: string[] = [...STARTERS];
+
+  // Session-only catalog with immediate starter emojis
   const [elements, setElements] = useState<ElementRow[]>(
-    STARTERS.map((n, i) => ({ id: -(i + 1), name: n })) // negative ids: local-only
+    starterNames.map((n, i) => ({
+      id: -(i + 1),
+      name: normalizeName(n),
+      emoji: emojiFor(n),
+    }))
   );
 
   // canvas tiles & UI state
@@ -42,101 +47,151 @@ export default function PlaySurface() {
   const TRASH_PAD = 8;
   const COMBINE_RADIUS = 80;
 
+  // when two tiles are within combine radius during drag
+  const [combineHint, setCombineHint] = useState<{ a: string; b: string } | null>(null);
+
+  // which tile is currently being dragged (for styling)
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+
   const elementSet = useMemo(() => new Set(elements.map((e) => e.name)), [elements]);
 
-  function addToSessionCatalog(name: string) {
+  function addToSessionCatalog(name: string, emoji?: string) {
     const n = normalizeName(name);
-    if (elementSet.has(n)) return;
+    if (elementSet.has(n)) {
+      // upgrade emoji if we learned a better one
+      if (emoji) {
+        setElements((prev) =>
+          prev.map((e) => (e.name === n && !e.emoji ? { ...e, emoji } : e))
+        );
+      }
+      return;
+    }
     setElements((prev) =>
-      [...prev, { id: -(prev.length + 1), name: n }].sort((a, b) =>
-        a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
-      )
+      [...prev, { id: -(prev.length + 1), name: n, emoji }]
+        .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
     );
   }
 
   function trashRect() {
     const h = canvasRef.current?.clientHeight ?? 0;
-    return {
-      left: TRASH_PAD,
-      top: h - TRASH_PAD - TRASH_SIZE,
-      right: TRASH_PAD + TRASH_SIZE,
-      bottom: h - TRASH_PAD,
-    };
+    return { left: TRASH_PAD, top: h - TRASH_PAD - TRASH_SIZE, right: TRASH_PAD + TRASH_SIZE, bottom: h - TRASH_PAD };
   }
   function isOverTrash(x: number, y: number, w: number, h: number) {
     const { left, top, right, bottom } = trashRect();
-    const cx = x + w / 2;
-    const cy = y + h / 2;
+    const cx = x + w / 2, cy = y + h / 2;
     return cx >= left && cx <= right && cy >= top && cy <= bottom;
   }
 
-  // Catalog → Canvas drag handlers
+  /** Find the nearest other tile to a given point (excludeId = moving tile) */
+  function nearestToPoint(point: { x: number; y: number }, excludeId?: string) {
+    let nearest: CanvasTileData | null = null;
+    let nearestD = Infinity;
+    for (const t of tiles) {
+      if (excludeId && t.id === excludeId) continue;
+      const d = dist(point, { x: t.x, y: t.y });
+      if (d < nearestD) { nearestD = d; nearest = t; }
+    }
+    return { nearest, nearestD };
+  }
+
+  /** Replace a+b with a single "pending" tile immediately, then morph to result when done */
+  async function combineTiles(a: CanvasTileData, b: CanvasTileData) {
+    // 1) Optimistic: remove a+b, add pending tile at midpoint
+    const mid = midpoint({ x: a.x, y: a.y }, { x: b.x, y: b.y });
+    const pendingId = uid();
+    setTiles((prev) => [
+      ...prev.filter((t) => t.id !== a.id && t.id !== b.id),
+      { id: pendingId, word: "Computing…", x: mid.x, y: mid.y, emoji: "⚙️", pending: true },
+    ]);
+
+    try {
+      const res = await fetch("/api/combine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ left: a.word, right: b.word }),
+      });
+      const data = await res.json();
+
+      if (!res.ok || data?.error) {
+        // Show error state on the pending tile
+        setTiles((prev) =>
+          prev.map((t) =>
+            t.id === pendingId
+              ? { ...t, word: "Error", emoji: "🛑", pending: false }
+              : t
+          )
+        );
+        console.error("Combine error:", data?.error || res.statusText);
+        return;
+      }
+
+      const resultWord = normalizeName(String(data.result || "").trim());
+      const resultEmoji: string | undefined = data.resultEmoji || undefined;
+
+      // 2) Morph the pending tile into the result
+      setTiles((prev) =>
+        prev.map((t) =>
+          t.id === pendingId
+            ? { ...t, word: resultWord, emoji: resultEmoji, pending: false }
+            : t
+        )
+      );
+
+      addToSessionCatalog(resultWord, resultEmoji);
+    } catch (err) {
+      // Network/unknown failure → error state on pending tile
+      setTiles((prev) =>
+        prev.map((t) =>
+          t.id === pendingId ? { ...t, word: "Error", emoji: "🛑", pending: false } : t
+        )
+      );
+      console.error(err);
+    }
+  }
+
+  // Catalog → Canvas drag handlers (still supports auto-combine on drop)
   function onCanvasDragOver(e: React.DragEvent) {
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
     const rect = canvasRef.current?.getBoundingClientRect();
     if (rect) setHexHighlight({ x: e.clientX - rect.left, y: e.clientY - rect.top });
   }
+
   async function onCanvasDrop(e: React.DragEvent) {
     e.preventDefault();
     setHexHighlight(null);
+    setCombineHint(null);
 
-    const word = e.dataTransfer.getData("text/plain");
-    if (!word) return;
+    const wordRaw = e.dataTransfer.getData("text/plain");
+    if (!wordRaw) return;
 
+    const word = normalizeName(wordRaw);
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const rect = canvas.getBoundingClientRect();
     const dropPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
 
-    const newTile: CanvasTileData = { id: uid(), word, x: dropPos.x, y: dropPos.y };
+    // Use known catalog emoji (if any) for this dropped word on the tile
+    const known = elements.find((el) => el.name === word);
+    const newTile: CanvasTileData = { id: uid(), word, x: dropPos.x, y: dropPos.y, emoji: known?.emoji };
     setTiles((prev) => [...prev, newTile]);
 
-    // find nearest neighbor among existing tiles to auto-combine if close
-    const others = tiles;
-    let nearest: CanvasTileData | null = null;
-    let nearestD = Infinity;
-    for (const t of others) {
-      const d = dist(dropPos, { x: t.x, y: t.y });
-      if (d < nearestD) {
-        nearestD = d;
-        nearest = t;
-      }
-    }
-
+    // Find nearest existing tile (not including the just-created one)
+    const { nearest, nearestD } = nearestToPoint(dropPos);
     if (nearest && nearestD <= COMBINE_RADIUS) {
-      try {
-        const res = await fetch("/api/combine", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ left: nearest.word, right: word }),
-        });
-        const data = await res.json();
-        if (!res.ok || data?.error) {
-          console.error("Combine error:", data?.error || res.statusText);
-          return;
-        }
-        const resultWord = normalizeName(String(data.result || "").trim());
-        const mid = midpoint({ x: nearest.x, y: nearest.y }, dropPos);
-
-        // replace two source tiles with result tile
-        setTiles((prev) => [
-          ...prev.filter((t) => t.id !== nearest!.id && t.id !== newTile.id),
-          { id: uid(), word: resultWord, x: mid.x, y: mid.y },
-        ]);
-
-        // 🔹 Add to session catalog because the user created it in THIS session
-        addToSessionCatalog(resultWord);
-      } catch (err) {
-        console.error(err);
-      }
+      await combineTiles(nearest, newTile);
     }
   }
 
   // Tile dragging within canvas
   function moveTile(id: string, x: number, y: number, w: number, h: number) {
     const canvas = canvasRef.current;
+
+    // mark which tile is being dragged (for styling)
+    if (draggingId !== id) setDraggingId(id);
+
+    // update the moved tile position
     setTiles((prev) =>
       prev.map((t) =>
         t.id === id
@@ -148,19 +203,65 @@ export default function PlaySurface() {
           : t
       )
     );
+
+    // trash hover + hex glow at the tile center
     setTrashHot(isOverTrash(x, y, w, h));
     setHexHighlight({ x: x + w / 2, y: y + h / 2 });
-  }
-  function releaseTile(id: string, x: number, y: number, w: number, h: number) {
-    const overTrash = isOverTrash(x, y, w, h);
-    setTrashHot(false);
-    setHexHighlight(null);
-    if (overTrash) {
-      setTiles((prev) => prev.filter((t) => t.id !== id));
+
+    // Compute nearest neighbor to this new position for the "in-range" cue
+    let nearest: CanvasTileData | null = null;
+    let nearestD = Infinity;
+    for (const t of tiles) {
+      if (t.id === id) continue;
+      const d = dist({ x, y }, { x: t.x, y: t.y });
+      if (d < nearestD) { nearestD = d; nearest = t; }
+    }
+
+    if (nearest && nearestD <= COMBINE_RADIUS) {
+      setCombineHint({ a: id, b: nearest.id });
+    } else {
+      setCombineHint(null);
     }
   }
-  function removeTile(id: string) {
+
+  async function releaseTile(id: string, x: number, y: number, w: number, h: number) {
+    const overTrash = isOverTrash(x, y, w, h);
+    setDraggingId(null);
     setTrashHot(false);
+    setHexHighlight(null);
+
+    if (overTrash) {
+      setCombineHint(null);
+      setTiles((prev) => prev.filter((t) => t.id !== id));
+      return;
+    }
+
+    // On release: if within COMBINE_RADIUS of another tile, combine them (show pending immediately)
+    let nearest: CanvasTileData | null = null;
+    let nearestD = Infinity;
+    for (const t of tiles) {
+      if (t.id === id) continue;
+      const d = dist({ x, y }, { x: t.x, y: t.y });
+      if (d < nearestD) { nearestD = d; nearest = t; }
+    }
+
+    if (nearest && nearestD <= COMBINE_RADIUS) {
+      setCombineHint(null);
+      // Create a synthetic "moving" tile with the released coordinates
+      const moving = tiles.find((t) => t.id === id);
+      const a = nearest;
+      const b = moving ? { ...moving, x, y } : { id, word: "", x, y } as CanvasTileData;
+      await combineTiles(a, b);
+      return;
+    }
+
+    setCombineHint(null);
+  }
+
+  function removeTile(id: string) {
+    setDraggingId(null);
+    setTrashHot(false);
+    setCombineHint(null);
     setTiles((prev) => prev.filter((t) => t.id !== id));
   }
 
@@ -172,7 +273,7 @@ export default function PlaySurface() {
         className={cn("relative h-full overflow-hidden p-2 bg-gray-010")}
         onDragOver={onCanvasDragOver}
         onDrop={onCanvasDrop}
-        onDragLeave={() => setHexHighlight(null)}
+        onDragLeave={() => { setHexHighlight(null); setCombineHint(null); }}
       >
         {/* Hex overlay behind tiles */}
         <HexGridCanvas
@@ -196,6 +297,8 @@ export default function PlaySurface() {
           <CanvasTile
             key={t.id}
             tile={t}
+            isHot={!!(combineHint && (combineHint.a === t.id || combineHint.b === t.id))}
+            isDragging={draggingId === t.id}
             onMove={moveTile}
             onRelease={releaseTile}
             onRemove={removeTile}
@@ -230,7 +333,7 @@ export default function PlaySurface() {
           <div className="mb-2 text-sm font-semibold text-zinc-600">Discovered (this session)</div>
           <div className="flex flex-wrap gap-2">
             {elements.map((e) => (
-              <CatalogTile key={`${e.id}-${e.name}`} name={e.name} />
+              <CatalogTile key={`${e.id}-${e.name}`} name={e.name} emoji={e.emoji} />
             ))}
           </div>
         </div>

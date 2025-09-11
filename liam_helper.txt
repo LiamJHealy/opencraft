@@ -10,11 +10,7 @@ RESET AND TEST:
 ------------------------------------------
 # Reset : Drop & recreate using migrations + seed (recommended)
 npx prisma migrate reset --force
-
-# Regenerate Prisma Client (usually automatic, but safe)
 npx prisma generate
-
-# Start dev
 npm run dev
 
 # Open Prisma strudio
@@ -30,24 +26,29 @@ Invoke-WebRequest http://localhost:3000/api/combine `
   -Body (@{left="water"; right="fire"} | ConvertTo-Json) `
   -ContentType "application/json"
 
-# Now /api/recipes should show one recipe, and re-running combine should be "known"
-Invoke-WebRequest http://localhost:3000/api/recipes
+# New Recipe
 Invoke-WebRequest http://localhost:3000/api/combine `
   -Method POST `
-  -Body (@{left="water"; right="fire"} | ConvertTo-Json) `
+  -Body (@{left="energy"; right="rain"} | ConvertTo-Json) `
   -ContentType "application/json"
 
 GIT PUSHES
 ------------------------------------------
 git add .
 git commit -m "ADD DESCRIPTION"
-git push
+git push --set-upstream origin <branch>
 
 GIT UPDATES
 ------------------------------------------
-git checkout main
+git checkout mains
 git pull origin main
 git checkout -b feat/<your-change>
-# ...work, commit...
-git push -u origin feat/<your-change>
-# open PR -> Squash & merge -> delete branch
+
+
+(Invoke-WebRequest http://localhost:3000/api/combine -Method POST `
+  -Body (@{ left='energy'; right='storm' } | ConvertTo-Json) `
+  -ContentType 'application/json').Content | ConvertFrom-Json
+
+(Invoke-WebRequest http://localhost:3000/api/combine -Method POST `
+  -Body (@{ left='thunderstorm'; right='wind' } | ConvertTo-Json) `
+  -ContentType 'application/json').Content | ConvertFrom-Json
