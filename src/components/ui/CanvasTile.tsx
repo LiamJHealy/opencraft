@@ -1,14 +1,32 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
-import { formatWord } from "@/lib/format";
+import { emojiFor, properCase } from "@/lib/format";
 
 export type CanvasTileData = {
   id: string;
-  word: string; // keep lowercase internally
+  word: string;
   x: number;
   y: number;
+  emoji?: string;
+  /** while waiting for combine result */
+  pending?: boolean;
+};
+
+type Props = {
+  tile: CanvasTileData;
+  onMove: (id: string, x: number, y: number, w: number, h: number) => void;
+  onRelease: (id: string, x: number, y: number, w: number, h: number) => void;
+  onRemove?: (id: string) => void;
+  onHover?: (cx: number, cy: number) => void;
+  onHoverEnd?: () => void;
+
+  /** Visually indicate this tile is in combine range */
+  isHot?: boolean;
+
+  /** True while the user is dragging this tile */
+  isDragging?: boolean;
 };
 
 export function CanvasTile({
@@ -16,76 +34,111 @@ export function CanvasTile({
   onMove,
   onRelease,
   onRemove,
-}: {
-  tile: CanvasTileData;
-  onMove: (id: string, x: number, y: number, w: number, h: number) => void;
-  onRelease: (id: string, x: number, y: number, w: number, h: number) => void;
-  onRemove: (id: string) => void;
-  onHover?: (cx: number, cy: number) => void;
-  onHoverEnd?: () => void;
-  
+  onHover,
+  onHoverEnd,
+  isHot,
+  isDragging,
+}: Props) {
+  const elRef = useRef<HTMLDivElement | null>(null);
+  const [dims, setDims] = useState({ w: 0, h: 0 });
 
-}) {
-  const ref = useRef<HTMLDivElement | null>(null);
-  const [dragging, setDragging] = useState(false);
-  const [offset, setOffset] = useState<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
+  // Measure width/height for hover center + bounds
+  useEffect(() => {
+    function measure() {
+      const el = elRef.current;
+      if (!el) return;
+      setDims({ w: el.offsetWidth, h: el.offsetHeight });
+    }
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (elRef.current) ro.observe(elRef.current);
+    return () => ro.disconnect();
+  }, []);
 
-  function dims() {
-    const w = ref.current?.offsetWidth ?? 100;
-    const h = ref.current?.offsetHeight ?? 28;
-    return { w, h };
+  const displayEmoji = tile.emoji ?? emojiFor(tile.word);
+  const displayText = properCase(tile.word);
+
+  // Hover -> let HexGrid know the center point for the glow
+  function handleMouseEnter() {
+    if (!onHover || !elRef.current) return;
+    const rect = elRef.current.getBoundingClientRect();
+    const cx = tile.x + rect.width / 2;
+    const cy = tile.y + rect.height / 2;
+    onHover(cx, cy);
+  }
+  function handleMouseLeave() {
+    onHoverEnd?.();
   }
 
-  
+  // Dragging with mouse
+  function onMouseDown(e: React.MouseEvent) {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const offsetX = startX - tile.x;
+    const offsetY = startY - tile.y;
 
-  function onPointerDown(e: React.PointerEvent) {
-    const el = ref.current;
-    if (!el) return;
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-    const rect = el.getBoundingClientRect();
-    setOffset({ dx: e.clientX - rect.left, dy: e.clientY - rect.top });
-    setDragging(true);
-  }
+    function onMoveWin(ev: MouseEvent) {
+      const nx = ev.clientX - offsetX;
+      const ny = ev.clientY - offsetY;
+      onMove(tile.id, nx, ny, dims.w, dims.h);
+    }
+    function onUpWin(ev: MouseEvent) {
+      const nx = ev.clientX - offsetX;
+      const ny = ev.clientY - offsetY;
+      onRelease(tile.id, nx, ny, dims.w, dims.h);
+      window.removeEventListener("mousemove", onMoveWin);
+      window.removeEventListener("mouseup", onUpWin);
+    }
 
-  function onPointerMove(e: React.PointerEvent) {
-    if (!dragging) return;
-    const canvas = ref.current?.parentElement as HTMLElement | null;
-    if (!canvas) return;
-    const crect = canvas.getBoundingClientRect();
-    const nx = e.clientX - crect.left - offset.dx;
-    const ny = e.clientY - crect.top - offset.dy;
-    const { w, h } = dims();
-    onMove(tile.id, nx, ny, w, h);
-  }
-
-  function onPointerUp(e: React.PointerEvent) {
-    setDragging(false);
-    (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
-    const { w, h } = dims();
-    onRelease(tile.id, tile.x, tile.y, w, h);
+    window.addEventListener("mousemove", onMoveWin);
+    window.addEventListener("mouseup", onUpWin);
   }
 
   function onContextMenu(e: React.MouseEvent) {
-    e.preventDefault(); // no browser menu
+    if (!onRemove) return;
+    e.preventDefault();
     onRemove(tile.id);
   }
 
   return (
     <div
-      ref={ref}
-      onContextMenu={onContextMenu}
+      ref={elRef}
       className={cn(
-        "absolute z-10 inline-flex items-center whitespace-nowrap",
-        "rounded-xl border border-zinc-500 bg-white px-3 py-1.5 text-sm text-zinc-900",
-        "shadow-sm hover:shadow-md transition-shadow select-none touch-none",
-        dragging && "ring-2 ring-zinc-400"
+        "absolute z-10 select-none cursor-grab active:cursor-grabbing",
+        // fully opaque, pill shape
+        "rounded-full border bg-white px-4 py-2",
+        // larger text
+        "text-base md:text-lg font-semibold text-zinc-900",
+        // visuals
+        "border-zinc-300 shadow-sm transition-transform transition-shadow duration-150 will-change-transform",
+        // combine-ready cue (no opacity animation)
+        isHot && "scale-105 ring-2 ring-amber-400 shadow-md",
+        // keep crisp while dragging; ensure not faded on any platform
+        isDragging && "opacity-100"
       )}
       style={{ left: tile.x, top: tile.y }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
+      title={displayText}
+      onMouseDown={onMouseDown}
+      onContextMenu={onContextMenu}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      data-hot={isHot ? "true" : "false"}
+      data-pending={tile.pending ? "true" : "false"}
     >
-      {formatWord(tile.word)}
+      {/* Separate spans so we can spin the emoji while pending */}
+      <span
+        className={cn(
+          "mr-1 inline-block",
+          tile.pending && "animate-spin"
+        )}
+        aria-hidden
+      >
+        {displayEmoji}
+      </span>
+      <span>{displayText}</span>
     </div>
   );
 }
+
+export default CanvasTile;
