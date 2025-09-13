@@ -1,0 +1,116 @@
+Project: OpenCraft (Infinite-Craft-style word-combiner)
+
+1. One-liner:
+A Next.js app where users drag word tiles onto a hex-grid canvas; dropping tiles near each other calls an LLM to “combine” them into a new word. The new word appears as a tile and is added to a session-only catalog. Results are archived in SQLite via Prisma so repeats become deterministic. For new pairs, we now create 5 variant results in the DB and return one random result for the game.
+
+2. Tech stack:
+
+Frontend: Next.js 15 (App Router), React 19, Tailwind CSS 4
+Canvas UI: custom hex-grid background (HTML canvas), drag-and-drop tiles
+Backend: Next.js API routes
+LLM: OpenAI (gpt-4o, via SDK)
+DB: SQLite + Prisma
+Auth: none (session is client-side only)
+Env: .env.local (git-ignored) with OPENAI_API_KEY, OPENAI_MODEL
+
+3. Current UX:
+
+Header (≈5% height) with logo + “Restart” (resets session).
+Main split: left 80% canvas, right 20% catalog.
+Bottom bar (≈5%) shows small watermark.
+Catalog starts with 4 starter tiles: Fire, Water, Earth, Wind (with emojis).
+Drag from catalog → drop on canvas; or drag canvas tiles near each other to combine.
+Proximity glow + hover animations; “trash” area bottom-left to remove tiles.
+While combining, a temporary “computing” tile (gear emoji) shows instead of stacking tiles.
+Session catalog only shows words discovered this session (DB is an archive, not auto-listed).
+
+4. Data flow (combine):
+
+Client calls POST /api/combine with { left, right }.
+If recipes for this pair already exist in DB (either order): pick one at random and return.
+Else: call OpenAI to produce 5 distinct candidates (short words/phrases, each may include an emoji).
+Upsert Element rows for each candidate (storing emoji if present).
+Create 5 Recipe rows (leftId, rightId, resultId, source='OPENAI').
+Return one random of the 5 for the current move.
+Client replaces source tiles with the result tile; adds the result to the session catalog.
+
+5. Server/API:
+
+/api/combine: main endpoint (see flow above).
+/api/debug/combine (optional): returns the generated candidates, DB duplicate flags, and chosen pick (for debugging).
+/api/ping: health check.
+
+6. DB schema (Prisma):
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Element {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  emoji     String?   
+  createdAt DateTime  @default(now())
+
+  asLeft    Recipe[]  @relation("left")
+  asRight   Recipe[]  @relation("right")
+  asResult  Recipe[]  @relation("result")
+}
+
+enum RecipeSource {
+  CANON
+  OLLAMA
+  MOCK
+  MANUAL
+  OPENAI   // ← add this
+}
+
+model Recipe {
+  id        Int          @id @default(autoincrement())
+  leftId    Int
+  rightId   Int
+  resultId  Int
+  createdAt DateTime     @default(now())
+
+  left      Element      @relation("left",   fields: [leftId],   references: [id], onDelete: Cascade)
+  right     Element      @relation("right",  fields: [rightId],  references: [id], onDelete: Cascade)
+  result    Element      @relation("result", fields: [resultId], references: [id], onDelete: Cascade)
+
+  source    RecipeSource @default(MANUAL)
+  reasoning String?
+
+  /// complexity 1..5 as chosen by the LLM (nullable for legacy rows)
+  complexity Int?
+
+  @@index([leftId, rightId])
+  @@index([resultId])
+  @@unique([leftId, rightId, resultId])
+}
+
+7. Frontend structure (key files):
+
+src/app/layout.tsx                // fonts, globals, <body>
+src/app/page.tsx                  // renders <PlaySurface/>
+src/components/features/play/PlaySurface.tsx
+src/components/ui/CanvasTile.tsx  // draggable tile (emoji + proper casing)
+src/components/ui/CatalogTile.tsx // draggable chips with wrap layout
+src/components/ui/HexGridCanvas.tsx // faint hex background + highlight
+src/lib/format.ts                 // emoji fallback + Proper Case
+src/lib/normalize.ts              // lowercase/trim normalize
+src/lib/db.ts                     // getOrCreateElement(), findExistingRecipe*
+src/lib/llm/openai.ts             // generateFiveCandidates() + provider
+src/app/api/combine/route.ts      // saves 5 recipes, returns one random
+
+8. Environment & dev:
+
+.env.local (git-ignored):
+OPENAI_API_KEY=sk-...
+OPENAI_MODEL=gpt-4o
+DATABASE_URL="file:./prisma/dev.db"
+
+9. Github repo:
+https://github.com/LiamJHealy/opencraft (public)

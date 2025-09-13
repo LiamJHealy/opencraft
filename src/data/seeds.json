@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "pairs": [
+    { "left": "water", "right": "water", "result": "Ocean", "emoji": "🌊" },
+    { "left": "fire",  "right": "fire",  "result": "Sun",   "emoji": "☀️" },
+    { "left": "earth", "right": "earth", "result": "Mountain", "emoji": "⛰️" },
+    { "left": "air",   "right": "air",   "result": "Wind",  "emoji": "💨" },
+    { "left": "life",  "right": "life",  "result": "Animal","emoji": "🐾" },
+    { "left": "human", "right": "human", "result": "Village","emoji": "🏘️" },
+    { "left": "water", "right": "fire",  "result": "Steam", "emoji": "☁️" }
+  ],
+  "vocabulary": [
+    { "name": "water", "aliases": ["aqua"] },
+    { "name": "fire",  "aliases": ["flame"] }
+  ],
+  "constraints": {
+    "blocklistResults": [],
+    "maxResultLen": 40
+  }
+}

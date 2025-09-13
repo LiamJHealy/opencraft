@@ -1,0 +1,19 @@
+{
+  "mode": "static",
+  "count": 6,
+  "starters": [
+    { "name": "fire",  "emoji": "🔥" },
+    { "name": "water", "emoji": "💧" },
+    { "name": "earth", "emoji": "🌍" },
+    { "name": "air",  "emoji": "💨" },
+    { "name": "life",  "emoji": "🌿" },
+    { "name": "human",  "emoji": "🧑" },
+
+    { "name": "fire",  "emoji": "🔥" },
+    { "name": "water", "emoji": "💧" },
+    { "name": "earth", "emoji": "🌍" },
+    { "name": "air",  "emoji": "💨" },
+    { "name": "life",  "emoji": "🌿" },
+    { "name": "human",  "emoji": "🧑" }
+  ]
+}
