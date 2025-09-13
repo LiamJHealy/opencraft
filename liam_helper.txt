@@ -40,13 +40,17 @@ git push --set-upstream origin <branch>
 
 GIT UPDATES
 ------------------------------------------
-git checkout mains
+git checkout main
 git pull origin main
 git checkout -b feat/<your-change>
 
 
 (Invoke-WebRequest http://localhost:3000/api/combine -Method POST `
-  -Body (@{ left='energy'; right='storm' } | ConvertTo-Json) `
+  -Body (@{ left='water'; right='water' } | ConvertTo-Json) `
+  -ContentType 'application/json').Content | ConvertFrom-Json
+
+(Invoke-WebRequest http://localhost:3000/api/combine -Method POST `
+  -Body (@{ left='water'; right='human' } | ConvertTo-Json) `
   -ContentType 'application/json').Content | ConvertFrom-Json
 
 (Invoke-WebRequest http://localhost:3000/api/combine -Method POST `

@@ -22,16 +22,19 @@ function midpoint(a: { x: number; y: number }, b: { x: number; y: number }) {
 function uid() { return Math.random().toString(36).slice(2); }
 
 export default function PlaySurface() {
-  // STARTERS may be readonly -> spread into mutable array
-  const starterNames: string[] = [...STARTERS];
+  // STARTERS is now [{ name, emoji? }]; make a mutable copy if readonly
+  const starters = [...STARTERS] as ReadonlyArray<{ name: string; emoji?: string }>;
 
   // Session-only catalog with immediate starter emojis
   const [elements, setElements] = useState<ElementRow[]>(
-    starterNames.map((n, i) => ({
-      id: -(i + 1),
-      name: normalizeName(n),
-      emoji: emojiFor(n),
-    }))
+    starters.map((s, i) => {
+      const n = normalizeName(s.name);
+      return {
+        id: -(i + 1),
+        name: n,
+        emoji: s.emoji ?? emojiFor(n),
+      };
+    })
   );
 
   // canvas tiles & UI state

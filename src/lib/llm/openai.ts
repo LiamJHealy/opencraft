@@ -1,87 +1,60 @@
+// src/lib/llm/openai.ts
+
 import OpenAI from "openai";
 import { normalizeName } from "@/lib/normalize";
 import type { CombineInput, CombineOutput, CombineProvider } from "./types";
+import { pickSeedExamples, buildAvoidList } from "@/lib/seeds";
 
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o";
 const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-/** Your prompt (unchanged except we expect emoji & complexity in output) */
+/**
+ * Lean rules + mention of seed_examples/avoid.
+ * Output must be strict JSON conforming to SCHEMA.
+ */
 export const SYSTEM_PROMPT =
   "You are a word-combining engine for a creative game.\n" +
-  "Your job is to take two input words from the user and return one new word or short phrase that feels logically or culturally connected to them. The output must be fun, surprising, and playable in a word-combination game.\n" +
-  "Rules:\n" +
-  "1. Output only one word or short phrase:\n" +
-  " - Never return sentences, lists, or explanations.\n" +
-  " - Keep the response concise to one word preferable for nouns and 2 words if Proper Noun.\n" +
-  "2. Complexity levels (1–5):\n" +
-  " - Level 1: Very simple, general, elemental (e.g., fire, rain, dirt, wind).\n" +
-  " - Level 2: Natural phenomena / direct consequences (e.g., storm, lava, smoke).\n" +
-  " - Level 3: Stronger forces / specific events (e.g., eruption, explosion, blizzard).\n" +
-  " - Level 4: Dramatic or abstract concepts (e.g., inferno, tempest, cataclysm).\n" +
-  " - Level 5: Advanced, cultural, or metaphorical (e.g., USA, Donald Trump, Bitcoin, Phenomenon).\n" +
-  "3. When combining:\n" +
-  " - Estimate the complexity level of the two input words.\n" +
-  " - The output should be similar to or 1 step higher in complexity than the inputs.\n" +
-  " - If both inputs are natural/simple (L1–L2) → return a natural phenomenon (storm, lava).\n" +
-  " - If inputs are social/political/economic/cultural → allow cultural entities, people, or institutions (USA, Donald Trump, Bitcoin).\n" +
-  " - If one input is natural and the other cultural → you may bridge them metaphorically (fire + law → revolution).\n" +
-  "4. Creativity balance:\n" +
-  " - The result should feel connected to the inputs but not too obvious.\n" +
-  " - Surprising answers are good, but they must still make sense with both inputs.\n" +
-  " - Leverage current affairs and recency where possible and don't be afraid to return Proper Nouns.\n" +
-  "5. Style:\n" +
-  " - Keep the outputs short, punchy, and game-friendly.\n" +
-  " - Use proper casing for names and acronyms (e.g., USA, Zeus, Donald Trump).\n" +
-  "6) If inputs differ in complexity, slightly bias the RESULT toward the MORE COMPLEX input (at most +1 vs the higher input).\n" +
-  "Example Behavior:\n" +
-  "- rain + energy → Storm\n" +
-  "- earth + fire → Lava\n" +
-  "- volcano + thunder → Inferno\n" +
-  "- tariff + law → USA\n" +
-  "- money + technology → Bitcoin\n" +
-  "- star + movie → Hollywood";
+  "Given two input words, return ONE new English word/name that makes logical, natural, or cultural sense with BOTH inputs.\n" +
+  "\nRules:\n" +
+  "- Output ONLY strict JSON: {\"result\": string, \"emoji\": string}.\n" +
+  "- Return exactly one short word/name (no sentences, no lists, no concatenations of inputs, no profanity).\n" +
+  "- Cultural entities (USA, Zeus, Bitcoin) are allowed when appropriate. Use proper casing.\n" +
+  "- Use common English words and avoid anything too abstract. It should be simple for anyone to understand.\n"
+  "- Use the provided seed_examples as style guidance and NEVER output any word listed in 'avoid'.\n";
 
 const SCHEMA = {
   type: "object",
   additionalProperties: false,
   properties: {
-    result:     { type: "string",  minLength: 1, maxLength: 40 },
-    complexity: { type: "integer", minimum: 1,  maximum: 5  },
-    emoji:      { type: "string",  minLength: 1, maxLength: 10 },
-    reasoning:  { type: "string",  maxLength: 120 }
+    result: { type: "string", minLength: 1, maxLength: 40 },
+    emoji:  { type: "string", minLength: 1, maxLength: 10 }
   },
-  required: ["result", "complexity", "emoji", "reasoning"]
+  required: ["result", "emoji"]
 } as const;
 
-function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
-function isRetryable(err: any) {
-  const s = err?.status ?? err?.response?.status;
-  return s === 429 || (typeof s === "number" && s >= 500);
-}
-
 /** Loose check that looks like a single emoji sequence (accepts ZWJ/VS-16) */
-function sanitizeEmoji(s: any): string | null {
-  if (typeof s !== "string") return null;
+function sanitizeEmoji(s: unknown): string | undefined {
+  if (typeof s !== "string") return undefined;
   const trimmed = s.trim();
-  if (!trimmed) return null;
-  // Reject letters/digits/commas etc. (we want glyphs only)
-  if (/[A-Za-z0-9]/.test(trimmed)) return null;
-  // Keep it short; most emoji sequences are < 10 code units
-  if (trimmed.length > 10) return null;
-  // A simple pictographic presence check (modern Node supports this)
-  if (!/\p{Extended_Pictographic}/u.test(trimmed)) return null;
-  return trimmed;
+  if (!trimmed) return undefined;
+  if (/[A-Za-z0-9]/.test(trimmed)) return undefined;
+  if (trimmed.length > 10) return undefined;
+  return /\p{Extended_Pictographic}/u.test(trimmed) ? trimmed : undefined;
 }
 
-async function callWithSchema(l: string, r: string) {
+/**
+ * Single entry point to the model using Structured Outputs (JSON Schema).
+ * The `payload` should include inputs, seed_examples, avoid, constraints, etc.
+ */
+async function callWithSchema(payload: unknown) {
   return client.chat.completions.create({
     model: MODEL,
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
-      { role: "user",   content: `L: ${l}\nR: ${r}\nReturn JSON only.` }
+      { role: "user",   content: JSON.stringify(payload) }
     ],
-    temperature: 0.25,
-    max_tokens: 500,
+    temperature: 0.8,
+    max_tokens: 160,
     response_format: {
       type: "json_schema",
       json_schema: { name: "CombineResult", schema: SCHEMA, strict: true }
@@ -89,57 +62,47 @@ async function callWithSchema(l: string, r: string) {
   });
 }
 
-async function callPlainJSON(l: string, r: string) {
-  const prompt = `L: ${l}\nR: ${r}\nReturn ONLY JSON: {"result":"<1–2 words>","complexity":<1-5>,"emoji":"<single emoji>","reasoning":"<short>"}`;
-  return client.chat.completions.create({
-    model: MODEL,
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user",   content: prompt }
-    ],
-    temperature: 0.25,
-    max_tokens: 80
-  });
-}
-
 export class OpenAIProvider implements CombineProvider {
   readonly name = "openai" as const;
 
   async combine({ left, right }: CombineInput): Promise<CombineOutput> {
+    // Normalize inputs
     const l = normalizeName(left);
     const r = normalizeName(right);
 
-    let lastErr: any;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const completion = attempt === 0 ? await callWithSchema(l, r) : await callPlainJSON(l, r);
-        const text = completion.choices?.[0]?.message?.content ?? "";
-        const obj = JSON.parse(text);
+    try {
+      // Build dynamic few-shots and an avoid list from seeds + DB
+      const seed_examples = pickSeedExamples(l, r, 3);
+      const avoid = await buildAvoidList(l, r);
 
-        const result = normalizeName(String(obj.result || "")) || normalizeName(`${l} ${r}`);
-        let complexity = Number(obj.complexity);
-        if (!Number.isFinite(complexity)) complexity = 3;
-        if (complexity < 1) complexity = 1;
-        if (complexity > 5) complexity = 5;
+      // Construct a single user payload and call the model
+      const payload = {
+        inputs: { left: l, right: r },
+        seed_examples,
+        avoid,
+        constraints: { maxResultLen: 40 }
+      };
 
-        const provEmoji = sanitizeEmoji(obj.emoji);
-        const reasoning = obj.reasoning ? `openai:${String(obj.reasoning)}` : "openai";
+      const completion = await callWithSchema(payload);
+      const text = completion.choices?.[0]?.message?.content ?? "";
+      const obj: any = JSON.parse(text);
 
-        return { result, complexity, emoji: provEmoji || undefined, reasoning, provider: "openai" };
-      } catch (err: any) {
-        lastErr = err;
-        if (isRetryable(err)) { await sleep(300 * (attempt + 1)); continue; }
-        if (attempt === 0) { continue; } // retry once with plain JSON
+      const result = normalizeName(String(obj.result ?? "")).slice(0, 40);
+      const emoji  = sanitizeEmoji(obj.emoji);
+
+      if (!result || !emoji) {
+        // Treat as failure so the route returns 502
+        return { result: "" };
       }
-    }
 
-    // Hard fallback so the game never blocks
-    return {
-      result: normalizeName(`${normalizeName(left)} ${normalizeName(right)}`) || "fusion",
-      complexity: 3,
-      emoji: undefined,
-      reasoning: "openai:hard-fallback",
-      provider: "openai",
-    };
+      return { result, emoji, provider: "openai" };
+    } catch {
+      // On any failure, return an unusable result to trigger 502 in the route
+      return { result: "" };
+    }
   }
+}
+
+export function getProvider(): CombineProvider {
+  return new OpenAIProvider();
 }

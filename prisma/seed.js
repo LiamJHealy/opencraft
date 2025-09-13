@@ -1,6 +1,4 @@
 // prisma/seed.js
-// Run with: npx prisma db seed
-// (CommonJS so it runs with `node prisma/seed.js`)
 
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
@@ -13,8 +11,12 @@ function norm(s) {
 const STARTERS = [
   ["fire",  "🔥"],
   ["water", "💧"],
-  ["earth", "🌍"],
-  ["wind",  "🌬️"],
+  ["america", "🌍"],
+  ["dragon",  "🌬️"],
+  ["football",  "🏈"],
+  ["strawberry",  "🍓"],
+  ["battery",  "🌬️"],
+  ["summer",  "🌬️"],
 ];
 
 // -------- Canonical core recipes --------
@@ -27,14 +29,6 @@ const CORE = [
   ["wind", "fire", "energy"],
 ];
 
-// Recommended emojis for core results
-// Notes:
-// - steam: ♨️ (“hot springs” symbol, widely used to denote steam) or 🫧 (bubbles). Picked ♨️ for clarity.
-// - mud: 🟫 (brown square) — simple and readable; alternatives are limited for “mud”.
-// - lava: 🌋 (volcano)
-// - dust: 💨 (dashing away) — conveys dust puff; alternative 🌫️ (fog) looks broader.
-// - rain: 🌧️ (cloud with rain)
-// - energy: ⚡ (high voltage)
 const CORE_EMOJI = {
   steam:  "♨️",
   mud:    "🟫",

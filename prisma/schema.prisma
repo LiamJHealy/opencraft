@@ -23,7 +23,7 @@ enum RecipeSource {
   OLLAMA
   MOCK
   MANUAL
-  OPENAI   // ← add this
+  OPENAI
 }
 
 model Recipe {
@@ -38,10 +38,6 @@ model Recipe {
   result    Element      @relation("result", fields: [resultId], references: [id], onDelete: Cascade)
 
   source    RecipeSource @default(MANUAL)
-  reasoning String?
-
-  /// complexity 1..5 as chosen by the LLM (nullable for legacy rows)
-  complexity Int?
 
   @@index([leftId, rightId])
   @@index([resultId])
