@@ -6,8 +6,13 @@ import { getOrCreateElement, findExistingRecipe } from "@/lib/db";
 import { getProvider } from "@/lib/llm";
 import { toDisplayName } from "@/lib/text";
 import { findSeed } from "@/lib/seeds";
-import type { $Enums } from "@prisma/client";
+import type { $Enums, Prisma } from "@prisma/client";
 
+// --- NEW: optionally treat pairs as commutative ---
+const COMMUTATIVE = true;
+function canonicalPair(a: string, b: string): [string, string] {
+  return COMMUTATIVE && a > b ? [b, a] : [a, b];
+}
 
 function toSource(providerName?: string): $Enums.RecipeSource {
   const p = (providerName || "").toLowerCase();
@@ -35,12 +40,15 @@ export async function POST(request: Request) {
     const leftRaw  = typeof body?.left  === "string" ? body.left  : "";
     const rightRaw = typeof body?.right === "string" ? body.right : "";
 
-    const leftName  = normalizeName(leftRaw);
-    const rightName = normalizeName(rightRaw);
+    let leftName  = normalizeName(leftRaw);
+    let rightName = normalizeName(rightRaw);
 
     if (!leftName || !rightName) {
       return Response.json({ error: "left and right are required strings" }, { status: 400 });
     }
+
+    // --- NEW: canonicalize order so water+fire == fire+water ---
+    [leftName, rightName] = canonicalPair(leftName, rightName);
 
     // 1) Known? ensure emoji exists, return immediately
     const existing = await findExistingRecipe(leftName, rightName);
@@ -64,76 +72,99 @@ export async function POST(request: Request) {
           provider: "db",
           resultEmoji: el?.emoji ?? null,
         },
-        { status: 200 }
+        { status: 200, headers: { "X-Combine-Source": "db" } }
       );
     }
 
     // 1.5) Seeded (JSON) pair? create recipe from seeds and return
-const seeded = findSeed(leftName, rightName);
-if (seeded) {
-  const [leftEl, rightEl, resultEl] = await Promise.all([
-    getOrCreateElement(leftName),
-    getOrCreateElement(rightName),
-    getOrCreateElement(seeded.result),
-  ]);
+    // --- CHANGED: check both orders for seeds explicitly, after canonicalization this is mostly redundant but safe ---
+    const seeded = findSeed(leftName, rightName) ?? findSeed(rightName, leftName);
+    if (seeded) {
+      const [leftEl, rightEl, resultEl] = await Promise.all([
+        getOrCreateElement(leftName),
+        getOrCreateElement(rightName),
+        getOrCreateElement(seeded.result),
+      ]);
 
-  const rec = await prisma.recipe.create({
-    data: {
-      leftId: leftEl.id,
-      rightId: rightEl.id,
-      resultId: resultEl.id,
-      source: "CANON", // curated seeds
-    },
-  });
+      // --- NEW: race-safe create; if someone else created the same triple, fetch and return it ---
+      let rec;
+      try {
+        rec = await prisma.recipe.create({
+          data: {
+            leftId: leftEl.id,
+            rightId: rightEl.id,
+            resultId: resultEl.id,
+            source: "CANON",
+          },
+        });
+      } catch (e: any) {
+        const code = (e as Prisma.PrismaClientKnownRequestError)?.code;
+        if (code === "P2002") {
+          // Unique constraint hit; return the existing one
+          const again = await findExistingRecipe(leftEl.name, rightEl.name);
+          if (again) {
+            rec = { id: again.id } as any;
+          } else {
+            throw e;
+          }
+        } else {
+          throw e;
+        }
+      }
 
-  // Persist emoji if provided by seeds and not already set
-  let finalEmoji: string | null = null;
-  try {
-    const current = await prisma.element.findUnique({
-      where: { id: resultEl.id },
-      select: { emoji: true },
-    });
+      // Persist emoji if provided by seeds and not already set
+      let finalEmoji: string | null = null;
+      try {
+        const current = await prisma.element.findUnique({
+          where: { id: resultEl.id },
+          select: { emoji: true },
+        });
 
-    if (!current?.emoji && seeded.emoji) {
-      await prisma.element.update({
-        where: { id: resultEl.id },
-        data: { emoji: seeded.emoji.trim() },
-      });
-      finalEmoji = seeded.emoji.trim();
-    } else {
-      const { ensureElementEmoji } = await import("@/lib/emoji/select");
-      finalEmoji = await ensureElementEmoji(resultEl.name);
+        if (!current?.emoji && seeded.emoji) {
+          await prisma.element.update({
+            where: { id: resultEl.id },
+            data: { emoji: seeded.emoji.trim() },
+          });
+          finalEmoji = seeded.emoji.trim();
+        } else {
+          const { ensureElementEmoji } = await import("@/lib/emoji/select");
+          finalEmoji = await ensureElementEmoji(resultEl.name);
+        }
+      } catch {
+        // ignore emoji errors
+      }
+
+      return Response.json(
+        {
+          status: "seeded",
+          left: toDisplayName(leftEl.name),
+          right: toDisplayName(rightEl.name),
+          result: toDisplayName(resultEl.name),
+          recipeId: rec!.id,
+          provider: "seed",
+          resultEmoji: finalEmoji,
+        },
+        { status: 201, headers: { "X-Combine-Source": "seed" } }
+      );
     }
-  } catch {
-    // ignore emoji errors
-  }
 
-  return Response.json(
-    {
-      status: "seeded",
-      left: toDisplayName(leftEl.name),
-      right: toDisplayName(rightEl.name),
-      result: toDisplayName(resultEl.name),
-      recipeId: rec.id,
-      provider: "seed",
-      resultEmoji: finalEmoji,
-    },
-    { status: 201 }
-  );
-}
-
-    // 2) Ask active provider — now returns ONLY { result, emoji }
+    // 2) Ask active provider — now returns ONE best candidate after reranking
     const provider = getProvider();
     const providerName = provider.name ?? "openai";
 
-    const { result, emoji: providerEmoji } = await provider.combine({
-      left: leftName,
-      right: rightName,
-    });
-
-    if (!result) {
-      return Response.json({ error: "provider returned empty result" }, { status: 502 });
+    // --- NEW: soft retry strategy in case the reranker filters everything ---
+    let attempt = await provider.combine({ left: leftName, right: rightName });
+    if (!attempt?.result) {
+      // One light retry; same inputs, gives the generator a second chance
+      attempt = await provider.combine({ left: leftName, right: rightName });
     }
+    if (!attempt?.result) {
+      // Last-resort: explicit 404-ish signal for the UI to show “try different tiles”
+      return Response.json({ error: "no suitable result", hint: "try different words" }, { status: 502 });
+    }
+
+    const { result, emoji: providerEmoji } = attempt;
+
     if (result.length > 40) {
       return Response.json({ error: "result too long" }, { status: 400 });
     }
@@ -145,14 +176,30 @@ if (seeded) {
       getOrCreateElement(result),
     ]);
 
-    const rec = await prisma.recipe.create({
-      data: {
-        leftId: leftEl.id,
-        rightId: rightEl.id,
-        resultId: resultEl.id,
-        source: toSource(providerName), 
-      },
-    });
+    // --- NEW: race-safe create with Prisma error handling ---
+    let rec;
+    try {
+      rec = await prisma.recipe.create({
+        data: {
+          leftId: leftEl.id,
+          rightId: rightEl.id,
+          resultId: resultEl.id,
+          source: toSource(providerName),
+        },
+      });
+    } catch (e: any) {
+      const code = (e as Prisma.PrismaClientKnownRequestError)?.code;
+      if (code === "P2002") {
+        const again = await findExistingRecipe(leftEl.name, rightEl.name);
+        if (again) {
+          rec = { id: again.id } as any;
+        } else {
+          throw e;
+        }
+      } else {
+        throw e;
+      }
+    }
 
     // 4) Persist emoji (if none set yet on the element)
     let finalEmoji: string | null = null;
@@ -183,11 +230,11 @@ if (seeded) {
         left: toDisplayName(leftEl.name),
         right: toDisplayName(rightEl.name),
         result: toDisplayName(resultEl.name),
-        recipeId: rec.id,
+        recipeId: rec!.id,
         provider: providerName,
         resultEmoji: finalEmoji,
       },
-      { status: 201 }
+      { status: 201, headers: { "X-Combine-Source": providerName } }
     );
   } catch (e: any) {
     return Response.json({ error: e?.message || "combine failed" }, { status: 500 });
