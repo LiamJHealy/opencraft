@@ -49,7 +49,7 @@ export default function PlaySurface() {
   // trash bin state
   const [trashHot, setTrashHot] = useState(false);
   const TRASH_SIZE = 64;
-  const TRASH_PAD = 8;
+  const TRASH_PAD = 24;
   const COMBINE_RADIUS = 80;
 
   // when two tiles are within combine radius during drag
@@ -271,16 +271,22 @@ export default function PlaySurface() {
   }
 
   return (
-    <div className="h-full grid grid-cols-[4fr_1fr] min-h-0">
-      {/* Left: Canvas */}
+    <div className="relative h-full w-full">
       <div
         ref={canvasRef}
-        className={cn("relative h-full overflow-hidden p-2 bg-gray-010")}
+        className={cn(
+          "relative h-full w-full overflow-hidden",
+          "bg-[radial-gradient(circle_at_top,_rgba(148,163,184,0.18),_transparent_60%)]"
+        )}
         onDragOver={onCanvasDragOver}
         onDrop={onCanvasDrop}
-        onDragLeave={() => { setHexHighlight(null); setCombineHint(null); }}
+        onDragLeave={() => {
+          setHexHighlight(null);
+          setCombineHint(null);
+        }}
       >
-        {/* Hex overlay behind tiles */}
+        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(30,64,175,0.15),_transparent_55%)]" />
+
         <HexGridCanvas
           parentRef={canvasRef}
           highlight={hexHighlight}
@@ -290,14 +296,12 @@ export default function PlaySurface() {
           highlightRadius={100}
         />
 
-        {/* hint text */}
         {tiles.length === 0 && (
-          <div className="absolute inset-0 z-10 flex items-center justify-center text-zinc-500">
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-lg font-medium text-white/50">
             Drag words here…
           </div>
         )}
 
-        {/* tiles */}
         {tiles.map((t) => (
           <CanvasTile
             key={t.id}
@@ -312,18 +316,19 @@ export default function PlaySurface() {
           />
         ))}
 
-        {/* Trash bin (bottom-left) */}
         <div
           className={cn(
-            "pointer-events-none absolute z-20",
+            "pointer-events-none absolute z-30",
             "flex items-center justify-center",
-            "rounded-lg",
-            trashHot ? "bg-rose-100/70 border border-rose-300" : "bg-zinc-200/40 border border-zinc-300/60"
+            "rounded-2xl border backdrop-blur",
+            trashHot
+              ? "border-rose-300/60 bg-rose-500/30 text-rose-100 shadow-lg"
+              : "border-white/10 bg-white/10 text-white/70 shadow"
           )}
           style={{ left: TRASH_PAD, bottom: TRASH_PAD, width: TRASH_SIZE, height: TRASH_SIZE }}
           aria-hidden
         >
-          <svg width="28" height="28" viewBox="0 0 24 24" className="drop-shadow-sm">
+          <svg width="28" height="28" viewBox="0 0 24 24" className="drop-shadow">
             <path d="M3 6h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" strokeWidth="2" />
             <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" stroke="currentColor" strokeWidth="2" />
@@ -332,15 +337,16 @@ export default function PlaySurface() {
         </div>
       </div>
 
-      {/* Right: Session-only Catalog */}
-      <aside className="border-l bg-white h-full overflow-y-auto">
-        <div className="p-3">
-          <div className="mb-2 text-sm font-semibold text-zinc-600">Discovered (this session)</div>
-          <div className="flex flex-wrap gap-2">
-            {elements.map((e) => (
-              <CatalogTile key={`${e.id}-${e.name}`} name={e.name} emoji={e.emoji} />
-            ))}
-          </div>
+      <aside
+        className="pointer-events-auto absolute right-8 top-32 z-20 w-[min(360px,calc(100%-4rem))] max-h-[70vh] overflow-y-auto rounded-3xl border border-white/10 bg-white/80 p-6 text-slate-900 shadow-2xl backdrop-blur"
+      >
+        <div className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
+          Discovered this session
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {elements.map((e) => (
+            <CatalogTile key={`${e.id}-${e.name}`} name={e.name} emoji={e.emoji} />
+          ))}
         </div>
       </aside>
     </div>
