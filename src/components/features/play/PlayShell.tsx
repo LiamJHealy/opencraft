@@ -1,26 +1,25 @@
-// src/components/features/play/PlayShell.tsx
+﻿// src/components/features/play/PlayShell.tsx
 
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import PlaySurface from "./PlaySurface";
 
+function cx(...classes: Array<string | false | null | undefined>) {
+  return classes.filter(Boolean).join(" ");
+}
+
 export default function PlayShell() {
-  const [surfaceKey, setSurfaceKey] = useState(0);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const [theme, setTheme] = useState<"dark" | "light">("light");
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement | null>(null);
+  const router = useRouter();
 
-  function extractErrorMessage(data: unknown, fallback?: string) {
-    if (data && typeof data === "object" && "error" in data) {
-      const candidate = (data as { error?: unknown }).error;
-      if (typeof candidate === "string" && candidate.trim()) {
-        return candidate;
-      }
-    }
-    return fallback;
-  }
+  const isDark = theme === "dark";
+  const themeEmoji = isDark ? "🌑" : "🌕";
+  const themeToggleLabel = `Switch to ${isDark ? "day" : "night"} mode`;
 
   useEffect(() => {
     function onPointerDown(event: PointerEvent) {
@@ -44,69 +43,101 @@ export default function PlayShell() {
     };
   }, []);
 
-  async function onRestart() {
-    setBusy(true);
-    setErr(null);
-    try {
-      const res = await fetch("/api/reset", { method: "POST" });
-      let data: unknown = null;
-      const contentType = res.headers.get("content-type") || "";
-      if (contentType.includes("application/json")) {
-        data = await res.json();
-      }
-      if (!res.ok) {
-        const fallback = res.statusText || "Reset failed";
-        throw new Error(extractErrorMessage(data, fallback) ?? fallback);
-      }
+  function toggleTheme() {
+    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
+  }
 
-      const explicitError = extractErrorMessage(data);
-      if (explicitError) throw new Error(explicitError);
-    } catch (error: unknown) {
-      setErr(error instanceof Error ? error.message : "Reset failed");
+  async function handleLogout() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
     } finally {
-      setSurfaceKey((k) => k + 1); // remount canvas + refetch catalog
-      setBusy(false);
+      setProfileOpen(false);
+      router.replace("/login");
     }
   }
 
+  const shellClasses = cx(
+    "relative h-screen w-screen overflow-hidden transition-colors duration-300",
+    isDark ? "bg-slate-950 text-white" : "bg-slate-100 text-slate-900"
+  );
+  const brandContainerClasses = cx(
+    "flex items-center gap-4 rounded-full p-2 pr-6 backdrop-blur transition-colors duration-300",
+    isDark ? "bg-white/5" : "border border-slate-900/10 bg-white/85 shadow-sm"
+  );
+  const brandMarkClasses = cx(
+    "flex h-12 w-12 items-center justify-center rounded-3xl text-xl font-semibold shadow-lg transition-colors duration-300",
+    isDark ? "bg-white text-slate-900 shadow-slate-900/30" : "bg-slate-900 text-slate-50 shadow-slate-900/20"
+  );
+  const themeButtonClasses = cx(
+    "flex h-11 w-11 items-center justify-center rounded-full text-2xl shadow-lg transition",
+    isDark
+      ? "bg-white/10 text-white shadow-slate-900/30 hover:bg-white/20"
+      : "bg-slate-900 text-white shadow-slate-900/15 hover:bg-slate-800"
+  );
+  const profileButtonClasses = cx(
+    "flex h-11 w-11 items-center justify-center rounded-full border text-xl shadow-lg transition",
+    isDark
+      ? "border-white/10 bg-white/10 text-white shadow-slate-900/40 hover:bg-white/20"
+      : "border-slate-900/10 bg-white/85 text-slate-900 shadow-slate-900/10 hover:bg-slate-900/10"
+  );
+  const menuClasses = cx(
+    "absolute right-0 mt-3 w-56 overflow-hidden rounded-3xl border p-2 text-sm shadow-2xl backdrop-blur transition-colors duration-300",
+    isDark
+      ? "border-white/10 bg-slate-900/90 text-white"
+      : "border-slate-900/10 bg-white text-slate-900 shadow-slate-900/15"
+  );
+  const menuItemClasses = cx(
+    "flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left transition",
+    isDark ? "hover:bg-white/10" : "hover:bg-slate-900/5"
+  );
+  const dividerClasses = isDark ? "bg-white/10" : "bg-slate-900/10";
+  const footerTextClasses = cx(
+    "pointer-events-none mt-auto flex justify-between px-8 pb-8 text-[0.65rem] font-medium uppercase tracking-[0.4em]",
+    isDark ? "text-white/30" : "text-slate-500"
+  );
+
   return (
-    <main className="relative h-screen w-screen overflow-hidden bg-slate-950 text-white">
+    <main className={shellClasses}>
       <div className="absolute inset-0 z-0">
-        <PlaySurface key={surfaceKey} />
+        <PlaySurface />
       </div>
 
       <div className="pointer-events-none absolute inset-0 z-30 flex flex-col">
         <header className="pointer-events-auto flex items-center justify-between px-8 py-6">
-          <div className="flex items-center gap-4 rounded-full bg-white/5 p-2 pr-6 backdrop-blur">
-            <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-white text-xl font-semibold text-slate-900 shadow-lg shadow-slate-900/30">
+          <div className={brandContainerClasses}>
+            <div className={brandMarkClasses}>
               🚀
             </div>
             <div className="flex flex-col">
-              <span className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">Daily Race</span>
+              <span
+                className={cx(
+                  "text-xs font-semibold uppercase tracking-[0.3em]",
+                  isDark ? "text-white/50" : "text-slate-500"
+                )}
+              >
+                Daily Race
+              </span>
               <span className="text-lg font-semibold">OpenCraft</span>
             </div>
           </div>
 
           <div className="flex items-center gap-3">
             <button
-              onClick={onRestart}
-              disabled={busy}
-              className="group relative overflow-hidden rounded-full bg-white/10 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-slate-900/40 transition hover:bg-white/20 disabled:cursor-wait disabled:opacity-70"
-              title="Reset this session (keep DB)"
+              type="button"
+              onClick={toggleTheme}
+              className={cx(themeButtonClasses, "pointer-events-auto")}
+              aria-label={themeToggleLabel}
+              aria-pressed={isDark}
+              title={themeToggleLabel}
             >
-              <span className="flex items-center gap-2">
-                {busy && (
-                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-transparent" aria-hidden />
-                )}
-                {busy ? "Resetting…" : "Reset session"}
-              </span>
+              <span aria-hidden>{themeEmoji}</span>
             </button>
 
-            <div ref={profileRef} className="relative">
+            <div ref={profileRef} className="pointer-events-auto relative">
               <button
                 type="button"
                 onClick={() => setProfileOpen((open) => !open)}
-                className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/10 text-xl shadow-lg shadow-slate-900/40 transition hover:bg-white/20"
+                className={profileButtonClasses}
                 aria-haspopup="menu"
                 aria-expanded={profileOpen}
               >
@@ -116,39 +147,34 @@ export default function PlayShell() {
               </button>
 
               {profileOpen && (
-                <div
-                  className="absolute right-0 mt-3 w-56 overflow-hidden rounded-3xl border border-white/10 bg-slate-900/90 p-2 text-sm text-white shadow-2xl backdrop-blur"
-                  role="menu"
-                >
-                  <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/40">
+                <div className={menuClasses} role="menu">
+                  <p
+                    className={cx(
+                      "px-3 pb-2 text-xs font-semibold uppercase tracking-[0.3em]",
+                      isDark ? "text-white/40" : "text-slate-500"
+                    )}
+                  >
                     Account
                   </p>
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left transition hover:bg-white/10"
-                    role="menuitem"
-                  >
+                  <button type="button" className={menuItemClasses} role="menuitem">
                     <span className="text-base" aria-hidden>
                       👤
                     </span>
                     Profile (coming soon)
                   </button>
-                  <div className="my-1 h-px bg-white/10" aria-hidden />
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left transition hover:bg-white/10"
+                  <div className={cx("my-1 h-px", dividerClasses)} aria-hidden />
+                  <Link
+                    href="/login"
+                    className={cx(menuItemClasses, "no-underline")}
                     role="menuitem"
+                    onClick={() => setProfileOpen(false)}
                   >
                     <span className="text-base" aria-hidden>
                       🔐
                     </span>
                     Log in
-                  </button>
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-2 rounded-2xl px-3 py-2 text-left transition hover:bg-white/10"
-                    role="menuitem"
-                  >
+                  </Link>
+                  <button type="button" className={menuItemClasses} role="menuitem" onClick={handleLogout}>
                     <span className="text-base" aria-hidden>
                       🚪
                     </span>
@@ -160,16 +186,9 @@ export default function PlayShell() {
           </div>
         </header>
 
-        {err && (
-          <div className="pointer-events-auto mx-auto mt-2 w-[min(480px,calc(100%-4rem))] rounded-2xl border border-rose-500/30 bg-rose-500/20 px-6 py-3 text-sm text-rose-100 shadow-lg backdrop-blur">
-            {err}
-          </div>
-        )}
-
-        <div className="pointer-events-none mt-auto flex justify-between px-8 pb-8 text-[0.65rem] font-medium uppercase tracking-[0.4em] text-white/30">
-          <span></span>
+        <div className={footerTextClasses}>
+          <span />
           <span>Imagine. Combine. Discover.</span>
-
         </div>
       </div>
     </main>
