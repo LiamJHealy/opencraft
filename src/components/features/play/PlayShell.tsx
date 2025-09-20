@@ -1,10 +1,12 @@
-﻿// src/components/features/play/PlayShell.tsx
+// src/components/features/play/PlayShell.tsx
 
 "use client";
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "@/components/providers/SessionProvider";
+import { useTheme } from "@/components/providers/ThemeProvider";
 import PlaySurface from "./PlaySurface";
 
 function cx(...classes: Array<string | false | null | undefined>) {
@@ -12,14 +14,18 @@ function cx(...classes: Array<string | false | null | undefined>) {
 }
 
 export default function PlayShell() {
-  const [theme, setTheme] = useState<"dark" | "light">("light");
+  const { isDark, toggleTheme } = useTheme();
+  const { user, setUser } = useSession();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
 
-  const isDark = theme === "dark";
-  const themeEmoji = isDark ? "🌑" : "🌕";
+  const themeEmoji = isDark ? "🌞" : "🌙";
   const themeToggleLabel = `Switch to ${isDark ? "day" : "night"} mode`;
+  const accountEmoji = user ? "😊" : "🔒";
+  const accountButtonLabel = user ? "Open account menu" : "Open login menu";
+  const aliasDisplay = user?.alias ?? user?.email ?? "Guest";
+  const accountMenuHeading = user ? "Account" : "Guest access";
 
   useEffect(() => {
     function onPointerDown(event: PointerEvent) {
@@ -43,13 +49,12 @@ export default function PlayShell() {
     };
   }, []);
 
-  function toggleTheme() {
-    setTheme((prev) => (prev === "dark" ? "light" : "dark"));
-  }
-
   async function handleLogout() {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
+      setUser(null);
+    } catch (error) {
+      console.error(error);
     } finally {
       setProfileOpen(false);
       router.replace("/login");
@@ -79,6 +84,20 @@ export default function PlayShell() {
     isDark
       ? "border-white/10 bg-white/10 text-white shadow-slate-900/40 hover:bg-white/20"
       : "border-slate-900/10 bg-white/85 text-slate-900 shadow-slate-900/10 hover:bg-slate-900/10"
+  );
+  const aliasBadgeClasses = cx(
+    "flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium shadow-lg transition-colors duration-300",
+    isDark
+      ? "border-white/15 bg-white/10 text-white shadow-slate-900/40"
+      : "border-slate-900/10 bg-white/90 text-slate-900 shadow-slate-900/10"
+  );
+  const aliasBadgeLabelClasses = cx(
+    "text-xs font-semibold uppercase tracking-[0.3em]",
+    isDark ? "text-white/60" : "text-slate-500"
+  );
+  const aliasBadgeValueClasses = cx(
+    "text-sm font-semibold",
+    isDark ? "text-white" : "text-slate-900"
   );
   const menuClasses = cx(
     "absolute right-0 mt-3 w-56 overflow-hidden rounded-3xl border p-2 text-sm shadow-2xl backdrop-blur transition-colors duration-300",
@@ -133,6 +152,13 @@ export default function PlayShell() {
               <span aria-hidden>{themeEmoji}</span>
             </button>
 
+            {user && (
+              <div className={cx(aliasBadgeClasses, "pointer-events-auto")} role="status" aria-live="polite">
+                <span className={aliasBadgeLabelClasses}>Alias</span>
+                <span className={aliasBadgeValueClasses}>{aliasDisplay}</span>
+              </div>
+            )}
+
             <div ref={profileRef} className="pointer-events-auto relative">
               <button
                 type="button"
@@ -140,10 +166,9 @@ export default function PlayShell() {
                 className={profileButtonClasses}
                 aria-haspopup="menu"
                 aria-expanded={profileOpen}
+                aria-label={accountButtonLabel}
               >
-                <span role="img" aria-label="Profile">
-                  😄
-                </span>
+                <span aria-hidden>{accountEmoji}</span>
               </button>
 
               {profileOpen && (
@@ -154,32 +179,50 @@ export default function PlayShell() {
                       isDark ? "text-white/40" : "text-slate-500"
                     )}
                   >
-                    Account
+                    {accountMenuHeading}
                   </p>
-                  <button type="button" className={menuItemClasses} role="menuitem">
-                    <span className="text-base" aria-hidden>
-                      👤
-                    </span>
-                    Profile (coming soon)
-                  </button>
-                  <div className={cx("my-1 h-px", dividerClasses)} aria-hidden />
-                  <Link
-                    href="/login"
-                    className={cx(menuItemClasses, "no-underline")}
-                    role="menuitem"
-                    onClick={() => setProfileOpen(false)}
-                  >
-                    <span className="text-base" aria-hidden>
-                      🔐
-                    </span>
-                    Log in
-                  </Link>
-                  <button type="button" className={menuItemClasses} role="menuitem" onClick={handleLogout}>
-                    <span className="text-base" aria-hidden>
-                      🚪
-                    </span>
-                    Log out
-                  </button>
+                  {user ? (
+                    <>
+                      <button
+                        type="button"
+                        className={menuItemClasses}
+                        role="menuitem"
+                        onClick={() => {
+                          setProfileOpen(false);
+                          router.push("/profile");
+                        }}
+                      >
+                        <span className="text-base" aria-hidden>
+                          🧭
+                        </span>
+                        Profile
+                      </button>
+                      <div className={cx("my-1 h-px", dividerClasses)} aria-hidden />
+                      <button
+                        type="button"
+                        className={menuItemClasses}
+                        role="menuitem"
+                        onClick={handleLogout}
+                      >
+                        <span className="text-base" aria-hidden>
+                          🚪
+                        </span>
+                        Log out
+                      </button>
+                    </>
+                  ) : (
+                    <Link
+                      href="/login"
+                      className={cx(menuItemClasses, "no-underline")}
+                      role="menuitem"
+                      onClick={() => setProfileOpen(false)}
+                    >
+                      <span className="text-base" aria-hidden>
+                        🔐
+                      </span>
+                      Log in
+                    </Link>
+                  )}
                 </div>
               )}
             </div>
