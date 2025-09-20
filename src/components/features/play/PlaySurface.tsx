@@ -2,12 +2,13 @@
 
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CatalogTile } from "@/components/ui/CatalogTile";
 import { CanvasTile, CanvasTileData } from "@/components/ui/CanvasTile";
 import { cn } from "@/lib/cn";
 import { normalizeName } from "@/lib/normalize";
 import { emojiFor } from "@/lib/format";
+import { useTheme } from "@/components/providers/ThemeProvider";
 import HexGridCanvas from "@/components/ui/HexGridCanvas";
 import { STARTERS } from "@/constants/starters";
 
@@ -29,20 +30,21 @@ function clamp(value: number, min: number, max: number) {
 }
 
 export default function PlaySurface() {
-  // STARTERS is now [{ name, emoji? }]; make a mutable copy if readonly
-  const starters = [...STARTERS] as ReadonlyArray<{ name: string; emoji?: string }>;
-
-  // Session-only catalog with immediate starter emojis
-  const [elements, setElements] = useState<ElementRow[]>(
-    starters.map((s, i) => {
-      const n = normalizeName(s.name);
-      return {
-        id: -(i + 1),
-        name: n,
-        emoji: s.emoji ?? emojiFor(n),
-      };
-    })
+  const starterElements = useMemo(
+    () =>
+      STARTERS.map((starter, index) => {
+        const normalized = normalizeName(starter.name);
+        return {
+          id: -(index + 1),
+          name: normalized,
+          emoji: starter.emoji ?? emojiFor(normalized),
+        };
+      }),
+    []
   );
+  const [discoveredElements, setDiscoveredElements] = useState<ElementRow[]>([]);
+
+  const { isDark } = useTheme();
 
   // canvas tiles & UI state
   const [tiles, setTiles] = useState<CanvasTileData[]>([]);
@@ -108,21 +110,88 @@ export default function PlaySurface() {
   // which tile is currently being dragged (for styling)
   const [draggingId, setDraggingId] = useState<string | null>(null);
 
-  const elementSet = useMemo(() => new Set(elements.map((e) => e.name)), [elements]);
+  const [promptText, setPromptText] = useState("");
+  const [caretVisible, setCaretVisible] = useState(true);
+
+  useEffect(() => {
+    const full = "Drag words here...";
+    let index = 0;
+    let direction: 1 | -1 = 1;
+    let timer = 0;
+
+    function schedule(delay: number) {
+      timer = window.setTimeout(step, delay);
+    }
+
+    function step() {
+      setPromptText(full.slice(0, index));
+      if (direction === 1) {
+        if (index < full.length) {
+          index += 1;
+          schedule(90);
+        } else {
+          direction = -1;
+          schedule(1400);
+        }
+      } else {
+        if (index > 0) {
+          index -= 1;
+          schedule(55);
+        } else {
+          direction = 1;
+          schedule(400);
+        }
+      }
+    }
+
+    schedule(240);
+
+    const blink = window.setInterval(() => setCaretVisible((visible) => !visible), 480);
+
+    return () => {
+      window.clearTimeout(timer);
+      window.clearInterval(blink);
+    };
+  }, []);
+
+  const catalogElements = useMemo(
+    () => [...starterElements, ...discoveredElements],
+    [starterElements, discoveredElements]
+  );
+  const elementSet = useMemo(() => new Set(catalogElements.map((e) => e.name)), [catalogElements]);
+
+  const catalogContainerClasses = cn(
+    "pointer-events-auto absolute z-20 w-[min(360px,calc(100%-4rem))] max-h-[70vh] overflow-y-auto rounded-3xl border p-6 shadow-2xl backdrop-blur transition-colors duration-300",
+    isDark
+      ? "border-white/10 bg-slate-900/80 text-white shadow-slate-900/40"
+      : "border-slate-900/10 bg-white/90 text-slate-900 shadow-slate-900/15"
+  );
+  const catalogHandleClasses = cn(
+    "mb-4 flex cursor-grab select-none items-center justify-between text-xs font-semibold uppercase tracking-[0.3em]",
+    isDark ? "text-white/50" : "text-slate-500"
+  );
+  const catalogSectionLabelClasses = cn(
+    "mb-2 text-xs font-semibold uppercase tracking-[0.3em]",
+    isDark ? "text-white/45" : "text-slate-500"
+  );
+  const catalogDividerClasses = isDark ? "bg-white/10" : "bg-slate-900/10";
+  const catalogEmptyTextClasses = cn(
+    "text-sm italic",
+    isDark ? "text-white/40" : "text-slate-500"
+  );
 
   function addToSessionCatalog(name: string, emoji?: string) {
-    const n = normalizeName(name);
-    if (elementSet.has(n)) {
-      // upgrade emoji if we learned a better one
+    const normalized = normalizeName(name);
+    if (elementSet.has(normalized)) {
       if (emoji) {
-        setElements((prev) =>
-          prev.map((e) => (e.name === n && !e.emoji ? { ...e, emoji } : e))
+        setDiscoveredElements((prev) =>
+          prev.map((entry) => (entry.name === normalized && !entry.emoji ? { ...entry, emoji } : entry))
         );
       }
       return;
     }
-    setElements((prev) =>
-      [...prev, { id: -(prev.length + 1), name: n, emoji }]
+    setDiscoveredElements((prev) =>
+      [...prev, { id: prev.length + 1, name: normalized, emoji }]
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
     );
   }
@@ -237,7 +306,7 @@ export default function PlaySurface() {
     const dropPos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
 
     // Use known catalog emoji (if any) for this dropped word on the tile
-    const known = elements.find((el) => el.name === word);
+    const known = catalogElements.find((el) => el.name === word);
     const newTile: CanvasTileData = { id: uid(), word, x: dropPos.x, y: dropPos.y, emoji: known?.emoji };
     setTiles((prev) => [...prev, newTile]);
 
@@ -356,8 +425,25 @@ export default function PlaySurface() {
         />
 
         {tiles.length === 0 && (
-          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-lg font-medium text-white/50">
-            Drag words here…
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+            <div
+              className={cn(
+                "flex items-center gap-3 rounded-full px-6 py-3 shadow-lg backdrop-blur-md transition-colors",
+                isDark ? "bg-slate-950/60" : "bg-white/80"
+              )}
+            >
+              <span className="oc-gradient-text text-xl font-semibold tracking-[0.2em]">
+                {promptText || " "}
+              </span>
+              <span
+                className={cn(
+                  "h-6 w-[2px] rounded-full transition-opacity",
+                  caretVisible ? "opacity-80" : "opacity-20",
+                  isDark ? "bg-white" : "bg-slate-900"
+                )}
+                aria-hidden
+              />
+            </div>
           </div>
         )}
 
@@ -398,40 +484,51 @@ export default function PlaySurface() {
 
       <aside
         ref={catalogRef}
-        className="pointer-events-auto absolute z-20 w-[min(360px,calc(100%-4rem))] max-h-[70vh] overflow-y-auto rounded-3xl border border-white/10 bg-white/85 p-6 text-slate-900 shadow-2xl backdrop-blur"
+        className={catalogContainerClasses}
         style={{ left: catalogPosition.x, top: catalogPosition.y }}
       >
         <div
-          className="mb-3 flex cursor-grab select-none items-center justify-between text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 active:cursor-grabbing"
+          className={catalogHandleClasses}
           onPointerDown={beginCatalogDrag}
           onPointerMove={onCatalogPointerMove}
           onPointerUp={endCatalogDrag}
           onPointerCancel={endCatalogDrag}
           role="presentation"
         >
-          <span>Discovered this session</span>
-          <span className="text-[1.3rem] font-medium tracking-[0.2em] text-slate-400">🖐🏻</span>
+          <span>Word catalog</span>
+          <span
+            className={cn(
+              "text-[1.3rem] font-medium tracking-[0.2em]",
+              isDark ? "text-white/40" : "text-slate-400"
+            )}
+          >
+            ✦✦
+          </span>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {elements.map((e) => (
-            <CatalogTile key={`${e.id}-${e.name}`} name={e.name} emoji={e.emoji} />
-          ))}
+        <div className="space-y-4">
+          <section>
+            <p className={catalogSectionLabelClasses}>Starting words</p>
+            <div className="flex flex-wrap gap-2">
+              {starterElements.map((entry) => (
+                <CatalogTile key={`${entry.id}-${entry.name}`} name={entry.name} emoji={entry.emoji} />
+              ))}
+            </div>
+          </section>
+          <div className={cn("h-px", catalogDividerClasses)} aria-hidden />
+          <section>
+            <p className={catalogSectionLabelClasses}>Discovered this session</p>
+            {discoveredElements.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {discoveredElements.map((entry) => (
+                  <CatalogTile key={`${entry.id}-${entry.name}`} name={entry.name} emoji={entry.emoji} />
+                ))}
+              </div>
+            ) : (
+              <p className={catalogEmptyTextClasses}>Combine tiles to discover new words.</p>
+            )}
+          </section>
         </div>
       </aside>
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
