@@ -43,3 +43,27 @@ model Recipe {
   @@index([resultId])
   @@unique([leftId, rightId, resultId])
 }
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  alias         String   @unique
+  passwordHash  String
+  passwordEnc   String
+  passwordIv    String
+  passwordTag   String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sessions      Session[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([userId])
+}
