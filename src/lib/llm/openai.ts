@@ -1,5 +1,4 @@
 // src/lib/llm/openai.ts
-// src/lib/llm/openai.ts
 
 import OpenAI from "openai";
 import { normalizeName } from "@/lib/normalize";
