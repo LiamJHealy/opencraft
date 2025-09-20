@@ -10,7 +10,10 @@ datasource db {
 model Element {
   id        Int       @id @default(autoincrement())
   name      String    @unique
-  emoji     String?   
+  emoji     String?
+  tier      Int?
+  isStarter Boolean   @default(false)
+  isGoal    Boolean   @default(false)
   createdAt DateTime  @default(now())
 
   asLeft    Recipe[]  @relation("left")

@@ -1,4 +1,4 @@
-// src/components/features/play/PlaySurface.tsx
+﻿// src/components/features/play/PlaySurface.tsx
 
 "use client";
 
@@ -7,10 +7,11 @@ import { CatalogTile } from "@/components/ui/CatalogTile";
 import { CanvasTile, CanvasTileData } from "@/components/ui/CanvasTile";
 import { cn } from "@/lib/cn";
 import { normalizeName } from "@/lib/normalize";
-import { emojiFor } from "@/lib/format";
+import { emojiFor, properCase } from "@/lib/format";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import HexGridCanvas from "@/components/ui/HexGridCanvas";
-import { STARTERS } from "@/constants/starters";
+import { TargetTile } from "@/components/features/play/TargetTile";
+import type { DailyPayload } from "@/lib/daily";
 
 type ElementRow = { id: number; name: string; emoji?: string };
 
@@ -30,18 +31,37 @@ function clamp(value: number, min: number, max: number) {
 }
 
 export default function PlaySurface() {
-  const starterElements = useMemo(
-    () =>
-      STARTERS.map((starter, index) => {
-        const normalized = normalizeName(starter.name);
-        return {
-          id: -(index + 1),
-          name: normalized,
-          emoji: starter.emoji ?? emojiFor(normalized),
-        };
-      }),
-    []
-  );
+  const [dailySeed, setDailySeed] = useState<string>("today");
+  const [daily, setDaily] = useState<DailyPayload | null>(null);
+  const [dailyLoading, setDailyLoading] = useState(true);
+  const [dailyError, setDailyError] = useState<string | null>(null);
+  const [completedTargets, setCompletedTargets] = useState<Set<string>>(new Set());
+
+  const starterElements = useMemo(() => {
+    if (!daily?.starters) return [];
+    return daily.starters.map((starter, index) => {
+      const normalized = normalizeName(starter.name);
+      const emoji = starter.emoji && starter.emoji.trim() ? starter.emoji : emojiFor(normalized);
+      return {
+        id: -(index + 1),
+        name: normalized,
+        emoji,
+      };
+    });
+  }, [daily]);
+
+  const requiredStarterSummary = useMemo(() => {
+    if (!daily?.targets) return [] as string[];
+    const set = new Set<string>();
+    for (const target of daily.targets) {
+      for (const starter of target.requiredStarters ?? []) {
+        const normalized = normalizeName(starter);
+        if (!set.has(normalized)) set.add(normalized);
+      }
+    }
+    return Array.from(set);
+  }, [daily]);
+
   const [discoveredElements, setDiscoveredElements] = useState<ElementRow[]>([]);
 
   const { isDark } = useTheme();
@@ -114,6 +134,52 @@ export default function PlaySurface() {
   const [caretVisible, setCaretVisible] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadDaily() {
+      setDailyLoading(true);
+      setDailyError(null);
+      try {
+        const query = dailySeed === "today" ? "" : `?seed=${encodeURIComponent(dailySeed)}`;
+        const res = await fetch(`/api/daily${query}`, { cache: "no-store" });
+        if (!res.ok) {
+          let errorMessage = `Request failed (${res.status})`;
+          try {
+            const data = await res.json();
+            if (data && typeof data.error === "string") errorMessage = data.error;
+          } catch {
+            // swallow JSON errors
+          }
+          throw new Error(errorMessage);
+        }
+        const payload = await res.json();
+        if (cancelled) return;
+        setDaily(payload);
+        setCompletedTargets(new Set());
+        setTiles([]);
+        setDiscoveredElements([]);
+        setCombineHint(null);
+        setDraggingId(null);
+        setHexHighlight(null);
+        setTrashHot(false);
+      } catch (error) {
+        if (cancelled) return;
+        const message = error instanceof Error ? error.message : "Failed to load daily set";
+        setDaily(null);
+        setDailyError(message);
+      } finally {
+        if (!cancelled) {
+          setDailyLoading(false);
+        }
+      }
+    }
+
+    loadDaily();
+    return () => {
+      cancelled = true;
+    };
+  }, [dailySeed]);
+  useEffect(() => {
     const full = "Drag words here...";
     let index = 0;
     let direction: 1 | -1 = 1;
@@ -180,6 +246,26 @@ export default function PlaySurface() {
     isDark ? "text-white/40" : "text-slate-500"
   );
 
+  const catalogInfoTextClasses = cn(
+    "text-[0.65rem] uppercase tracking-[0.3em]",
+    isDark ? "text-white/40" : "text-slate-500"
+  );
+  const catalogErrorTextClasses = cn(
+    "text-sm font-semibold",
+    isDark ? "text-rose-300" : "text-rose-600"
+  );
+  const primaryCatalogButtonClasses = cn(
+    "rounded-full px-4 py-1.5 text-[0.6rem] font-semibold uppercase tracking-[0.3em] transition focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-60",
+    isDark
+      ? "bg-white/10 text-white hover:bg-white/20 focus:ring-white/30 focus:ring-offset-slate-900"
+      : "bg-slate-900 text-white hover:bg-slate-700 focus:ring-slate-900/30 focus:ring-offset-white"
+  );
+  const secondaryCatalogButtonClasses = cn(
+    "rounded-full px-3 py-1 text-[0.6rem] font-semibold uppercase tracking-[0.3em] transition focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-60",
+    isDark
+      ? "border border-white/20 text-white/80 hover:bg-white/10 focus:ring-white/20 focus:ring-offset-slate-900"
+      : "border border-slate-900/20 text-slate-700 hover:bg-slate-900/10 focus:ring-slate-900/20 focus:ring-offset-white"
+  );
   function addToSessionCatalog(name: string, emoji?: string) {
     const normalized = normalizeName(name);
     if (elementSet.has(normalized)) {
@@ -194,6 +280,14 @@ export default function PlaySurface() {
       [...prev, { id: prev.length + 1, name: normalized, emoji }]
         .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }))
     );
+    if (daily?.targets?.some((target) => target.name === normalized) && !completedTargets.has(normalized)) {
+      setCompletedTargets((prev) => {
+        if (prev.has(normalized)) return prev;
+        const next = new Set(prev);
+        next.add(normalized);
+        return next;
+      });
+    }
   }
 
   function trashRect() {
@@ -225,7 +319,7 @@ export default function PlaySurface() {
     const pendingId = uid();
     setTiles((prev) => [
       ...prev.filter((t) => t.id !== a.id && t.id !== b.id),
-      { id: pendingId, word: "Computing…", x: mid.x, y: mid.y, emoji: "⚙️", pending: true },
+      { id: pendingId, word: "Computingâ€¦", x: mid.x, y: mid.y, emoji: "âš™ï¸", pending: true },
     ]);
 
     try {
@@ -241,7 +335,7 @@ export default function PlaySurface() {
         setTiles((prev) =>
           prev.map((t) =>
             t.id === pendingId
-              ? { ...t, word: "Error", emoji: "🛑", pending: false }
+              ? { ...t, word: "Error", emoji: "ðŸ›‘", pending: false }
               : t
           )
         );
@@ -263,17 +357,17 @@ export default function PlaySurface() {
 
       addToSessionCatalog(resultWord, resultEmoji);
     } catch (err) {
-      // Network/unknown failure → error state on pending tile
+      // Network/unknown failure â†’ error state on pending tile
       setTiles((prev) =>
         prev.map((t) =>
-          t.id === pendingId ? { ...t, word: "Error", emoji: "🛑", pending: false } : t
+          t.id === pendingId ? { ...t, word: "Error", emoji: "ðŸ›‘", pending: false } : t
         )
       );
       console.error(err);
     }
   }
 
-  // Catalog → Canvas drag handlers (still supports auto-combine on drop)
+  // Catalog â†’ Canvas drag handlers (still supports auto-combine on drop)
   function onCanvasDragOver(e: React.DragEvent) {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
@@ -433,7 +527,7 @@ export default function PlaySurface() {
               )}
             >
               <span className="oc-gradient-text text-xl font-semibold tracking-[0.2em]">
-                {promptText || " "}
+                {promptText || "Â "}
               </span>
               <span
                 className={cn(
@@ -502,17 +596,81 @@ export default function PlaySurface() {
               isDark ? "text-white/40" : "text-slate-400"
             )}
           >
-            ✦✦
+            âœ¦âœ¦
           </span>
         </div>
         <div className="space-y-4">
           <section>
-            <p className={catalogSectionLabelClasses}>Starting words</p>
-            <div className="flex flex-wrap gap-2">
-              {starterElements.map((entry) => (
-                <CatalogTile key={`${entry.id}-${entry.name}`} name={entry.name} emoji={entry.emoji} />
-              ))}
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className={catalogSectionLabelClasses}>Daily targets</p>
+              <div className="flex flex-wrap items-center gap-2">
+                {dailySeed !== "today" && (
+                  <button
+                    type="button"
+                    onClick={() => setDailySeed("today")}
+                    disabled={dailyLoading}
+                    className={secondaryCatalogButtonClasses}
+                  >
+                    Today
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setDailySeed(`${Date.now()}`)}
+                  disabled={dailyLoading}
+                  className={primaryCatalogButtonClasses}
+                >
+                  {dailyLoading ? "Loading…" : "Simulate new day"}
+                </button>
+              </div>
             </div>
+            {dailyLoading ? (
+              <p className={catalogEmptyTextClasses}>Loading daily set.</p>
+            ) : dailyError ? (
+              <p className={catalogErrorTextClasses}>{dailyError}</p>
+            ) : daily?.targets?.length ? (
+              <div className="space-y-3">
+                <p className={catalogInfoTextClasses}>
+                  Seed {daily.seed.toUpperCase()} - Targets {daily.targets.length} - Reachable {daily.reachableCount}
+                </p>
+                {requiredStarterSummary.length > 0 && (
+                  <p className={catalogInfoTextClasses}>
+                    Core starters: {requiredStarterSummary.map((name) => properCase(name)).join(" / ")}
+                  </p>
+                )}
+                <div className="grid gap-3">
+                  {daily.targets.map((target) => (
+                    <TargetTile
+                      key={`target-${target.elementId}`}
+                      name={target.name}
+                      emoji={target.emoji ?? emojiFor(target.name)}
+                      difficulty={target.difficulty}
+                      steps={target.steps}
+                      recipes={target.recipes}
+                      requiredStarters={target.requiredStarters}
+                      completed={completedTargets.has(target.name)}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className={catalogEmptyTextClasses}>No targets available.</p>
+            )}
+          </section>
+          <div className={cn("h-px", catalogDividerClasses)} aria-hidden />
+          <section>
+            <p className={catalogSectionLabelClasses}>Starting words</p>
+            {dailyLoading ? (
+              <p className={catalogEmptyTextClasses}>Loading…</p>
+            ) : starterElements.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {starterElements.map((entry) => (
+                  <CatalogTile key={`${entry.id}-${entry.name}`} name={entry.name} emoji={entry.emoji} />
+                ))}
+              </div>
+            ) : (
+              <p className={catalogEmptyTextClasses}>No starters available.</p>
+            )}
           </section>
           <div className={cn("h-px", catalogDividerClasses)} aria-hidden />
           <section>
@@ -520,7 +678,11 @@ export default function PlaySurface() {
             {discoveredElements.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {discoveredElements.map((entry) => (
-                  <CatalogTile key={`${entry.id}-${entry.name}`} name={entry.name} emoji={entry.emoji} />
+                  <CatalogTile
+                    key={`${entry.id}-${entry.name}`}
+                    name={entry.name}
+                    emoji={entry.emoji ?? emojiFor(entry.name)}
+                  />
                 ))}
               </div>
             ) : (
@@ -532,3 +694,34 @@ export default function PlaySurface() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
