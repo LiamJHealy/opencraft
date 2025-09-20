@@ -78,11 +78,11 @@ export default function PlayShell() {
       <div className="pointer-events-none absolute inset-0 z-30 flex flex-col">
         <header className="pointer-events-auto flex items-center justify-between px-8 py-6">
           <div className="flex items-center gap-4 rounded-full bg-white/5 p-2 pr-6 backdrop-blur">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-xl font-semibold text-slate-900 shadow-lg shadow-slate-900/30">
-              OC
+            <div className="flex h-12 w-12 items-center justify-center rounded-3xl bg-white text-xl font-semibold text-slate-900 shadow-lg shadow-slate-900/30">
+              🚀
             </div>
             <div className="flex flex-col">
-              <span className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">Playground</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.3em] text-white/50">Daily Race</span>
               <span className="text-lg font-semibold">OpenCraft</span>
             </div>
           </div>
@@ -111,7 +111,7 @@ export default function PlayShell() {
                 aria-expanded={profileOpen}
               >
                 <span role="img" aria-label="Profile">
-                  🧑‍🚀
+                  😄
                 </span>
               </button>
 
@@ -167,8 +167,9 @@ export default function PlayShell() {
         )}
 
         <div className="pointer-events-none mt-auto flex justify-between px-8 pb-8 text-[0.65rem] font-medium uppercase tracking-[0.4em] text-white/30">
+          <span></span>
           <span>Imagine. Combine. Discover.</span>
-          <span>v0.1</span>
+
         </div>
       </div>
     </main>
