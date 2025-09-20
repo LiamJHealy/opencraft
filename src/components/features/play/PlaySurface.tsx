@@ -13,6 +13,8 @@ import { STARTERS } from "@/constants/starters";
 
 type ElementRow = { id: number; name: string; emoji?: string };
 
+type CombineHint = { ids: string[]; fromCatalog?: boolean };
+
 // helpers
 function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
   const dx = a.x - b.x, dy = a.y - b.y;
@@ -22,6 +24,9 @@ function midpoint(a: { x: number; y: number }, b: { x: number; y: number }) {
   return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
 }
 function uid() { return Math.random().toString(36).slice(2); }
+function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max);
+}
 
 export default function PlaySurface() {
   // STARTERS is now [{ name, emoji? }]; make a mutable copy if readonly
@@ -42,6 +47,50 @@ export default function PlaySurface() {
   // canvas tiles & UI state
   const [tiles, setTiles] = useState<CanvasTileData[]>([]);
   const canvasRef = useRef<HTMLDivElement | null>(null);
+  const catalogRef = useRef<HTMLDivElement | null>(null);
+  const [catalogPosition, setCatalogPosition] = useState({ x: 32, y: 120 });
+  const catalogDragRef = useRef({
+    active: false,
+    pointerId: 0,
+    offsetX: 0,
+    offsetY: 0,
+  });
+
+  function updateCatalogPosition(clientX: number, clientY: number) {
+    const width = catalogRef.current?.offsetWidth ?? 0;
+    const height = catalogRef.current?.offsetHeight ?? 0;
+    const maxX = Math.max(CATALOG_PADDING, window.innerWidth - width - CATALOG_PADDING);
+    const maxY = Math.max(CATALOG_PADDING, window.innerHeight - height - CATALOG_PADDING);
+    setCatalogPosition({
+      x: clamp(clientX - catalogDragRef.current.offsetX, CATALOG_PADDING, maxX),
+      y: clamp(clientY - catalogDragRef.current.offsetY, CATALOG_PADDING, maxY),
+    });
+  }
+
+  function beginCatalogDrag(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    const rect = catalogRef.current?.getBoundingClientRect();
+    catalogDragRef.current = {
+      active: true,
+      pointerId: event.pointerId,
+      offsetX: event.clientX - (rect?.left ?? event.clientX),
+      offsetY: event.clientY - (rect?.top ?? event.clientY),
+    };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  }
+
+  function onCatalogPointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    if (!catalogDragRef.current.active || event.pointerId !== catalogDragRef.current.pointerId) return;
+    event.preventDefault();
+    updateCatalogPosition(event.clientX, event.clientY);
+  }
+
+  function endCatalogDrag(event: React.PointerEvent<HTMLDivElement>) {
+    if (!catalogDragRef.current.active || event.pointerId !== catalogDragRef.current.pointerId) return;
+    catalogDragRef.current.active = false;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+  }
 
   // hex glow state
   const [hexHighlight, setHexHighlight] = useState<{ x: number; y: number } | null>(null);
@@ -51,9 +100,10 @@ export default function PlaySurface() {
   const TRASH_SIZE = 64;
   const TRASH_PAD = 24;
   const COMBINE_RADIUS = 80;
+  const CATALOG_PADDING = 24;
 
   // when two tiles are within combine radius during drag
-  const [combineHint, setCombineHint] = useState<{ a: string; b: string } | null>(null);
+  const [combineHint, setCombineHint] = useState<CombineHint | null>(null);
 
   // which tile is currently being dragged (for styling)
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -157,9 +207,18 @@ export default function PlaySurface() {
   // Catalog → Canvas drag handlers (still supports auto-combine on drop)
   function onCanvasDragOver(e: React.DragEvent) {
     e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
+    e.dataTransfer.dropEffect = "move";
     const rect = canvasRef.current?.getBoundingClientRect();
-    if (rect) setHexHighlight({ x: e.clientX - rect.left, y: e.clientY - rect.top });
+    if (!rect) return;
+    const point = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    setHexHighlight(point);
+
+    const { nearest, nearestD } = nearestToPoint(point);
+    if (nearest && nearestD <= COMBINE_RADIUS) {
+      setCombineHint({ ids: [nearest.id], fromCatalog: true });
+    } else {
+      setCombineHint(null);
+    }
   }
 
   async function onCanvasDrop(e: React.DragEvent) {
@@ -223,7 +282,7 @@ export default function PlaySurface() {
     }
 
     if (nearest && nearestD <= COMBINE_RADIUS) {
-      setCombineHint({ a: id, b: nearest.id });
+      setCombineHint({ ids: [id, nearest.id] });
     } else {
       setCombineHint(null);
     }
@@ -306,7 +365,7 @@ export default function PlaySurface() {
           <CanvasTile
             key={t.id}
             tile={t}
-            isHot={!!(combineHint && (combineHint.a === t.id || combineHint.b === t.id))}
+            isHot={!!combineHint?.ids.includes(t.id)}
             isDragging={draggingId === t.id}
             onMove={moveTile}
             onRelease={releaseTile}
@@ -338,10 +397,20 @@ export default function PlaySurface() {
       </div>
 
       <aside
-        className="pointer-events-auto absolute right-8 top-32 z-20 w-[min(360px,calc(100%-4rem))] max-h-[70vh] overflow-y-auto rounded-3xl border border-white/10 bg-white/80 p-6 text-slate-900 shadow-2xl backdrop-blur"
+        ref={catalogRef}
+        className="pointer-events-auto absolute z-20 w-[min(360px,calc(100%-4rem))] max-h-[70vh] overflow-y-auto rounded-3xl border border-white/10 bg-white/85 p-6 text-slate-900 shadow-2xl backdrop-blur"
+        style={{ left: catalogPosition.x, top: catalogPosition.y }}
       >
-        <div className="mb-3 text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
-          Discovered this session
+        <div
+          className="mb-3 flex cursor-grab select-none items-center justify-between text-xs font-semibold uppercase tracking-[0.3em] text-slate-500 active:cursor-grabbing"
+          onPointerDown={beginCatalogDrag}
+          onPointerMove={onCatalogPointerMove}
+          onPointerUp={endCatalogDrag}
+          onPointerCancel={endCatalogDrag}
+          role="presentation"
+        >
+          <span>Discovered this session</span>
+          <span className="text-[1.3rem] font-medium tracking-[0.2em] text-slate-400">🖐🏻</span>
         </div>
         <div className="flex flex-wrap gap-2">
           {elements.map((e) => (
@@ -352,3 +421,17 @@ export default function PlaySurface() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+

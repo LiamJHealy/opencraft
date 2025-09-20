@@ -33,7 +33,7 @@ export function CatalogTile({ name, emoji }: { name: string; emoji?: string }) {
 
   function onDragStart(e: React.DragEvent) {
     e.dataTransfer.setData("text/plain", name);
-    e.dataTransfer.effectAllowed = "copy";
+    e.dataTransfer.effectAllowed = "copyMove";
   }
 
   return (

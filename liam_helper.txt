@@ -60,4 +60,4 @@ git checkout -b feat/<your-change>
 
 Queries:
 
-I want to update the user interface on the PlayShell.tsx page so that it has more of a modern feel and can navigate the app with ease. To do this I want to make the canvas cover the full screen and have the other components like the catalog to be floating on the canvas with rounded edges - similar to how FigJam does it on their webpage. I also want to have a profile emoji button on the top which can be clicked to open up the small drop down menu for the login/logout and profile page (not yet built). You can also put in a placeholder logo for on the top left of the page.
+🚀🪐🌕🌑☄️🛸
