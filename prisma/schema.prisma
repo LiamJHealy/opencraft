@@ -7,18 +7,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Element {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  emoji     String?
-  tier      Int?
-  isStarter Boolean   @default(false)
-  isGoal    Boolean   @default(false)
-  createdAt DateTime  @default(now())
+model Word {
+  id          Int                 @id @default(autoincrement())
+  name        String              @unique
+  emoji       String?
+  category    String?
+  tier        Int?
+  isStarter   Boolean             @default(false)
+  isGoal      Boolean             @default(false)
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 
-  asLeft    Recipe[]  @relation("left")
-  asRight   Recipe[]  @relation("right")
-  asResult  Recipe[]  @relation("result")
+  asLeft      RecipeEdge[]        @relation("ingredient_left")
+  asRight     RecipeEdge[]        @relation("ingredient_right")
+  asResult    RecipeEdge[]        @relation("result_word")
+  targetRuns  DailyTargetHistory[]
+
+  @@index([category])
 }
 
 enum RecipeSource {
@@ -29,22 +34,40 @@ enum RecipeSource {
   OPENAI
 }
 
-model Recipe {
+model RecipeEdge {
   id        Int          @id @default(autoincrement())
   leftId    Int
   rightId   Int
   resultId  Int
-  createdAt DateTime     @default(now())
-
-  left      Element      @relation("left",   fields: [leftId],   references: [id], onDelete: Cascade)
-  right     Element      @relation("right",  fields: [rightId],  references: [id], onDelete: Cascade)
-  result    Element      @relation("result", fields: [resultId], references: [id], onDelete: Cascade)
-
+  category  String?
   source    RecipeSource @default(MANUAL)
+  isDefault Boolean      @default(false)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  left      Word         @relation("ingredient_left", fields: [leftId], references: [id], onDelete: Cascade)
+  right     Word         @relation("ingredient_right", fields: [rightId], references: [id], onDelete: Cascade)
+  result    Word         @relation("result_word", fields: [resultId], references: [id], onDelete: Cascade)
 
   @@index([leftId, rightId])
   @@index([resultId])
+  @@index([category])
   @@unique([leftId, rightId, resultId])
+}
+
+model DailyTargetHistory {
+  id            Int      @id @default(autoincrement())
+  seed          String
+  targetId      Int
+  selectedOn    DateTime @default(now())
+  maxDepth      Int?
+  starterWordIds Json
+
+  target        Word     @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@unique([seed])
+  @@index([selectedOn])
+  @@index([targetId])
 }
 
 model User {

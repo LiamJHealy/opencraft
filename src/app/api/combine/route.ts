@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { normalizeName } from "@/lib/normalize";
-import { getOrCreateElement, findExistingRecipe } from "@/lib/db";
+import { getOrCreateWord, findExistingRecipe } from "@/lib/db";
 import { getProvider } from "@/lib/llm";
 import { toDisplayName } from "@/lib/text";
 import { findSeed } from "@/lib/seeds";
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
         const { ensureElementEmoji } = await import("@/lib/emoji/select");
         await ensureElementEmoji(existing.result.name);
       } catch {}
-      const el = await prisma.element.findUnique({
+      const el = await prisma.word.findUnique({
         where: { id: existing.resultId },
         select: { emoji: true },
       });
@@ -81,20 +81,21 @@ export async function POST(request: Request) {
     const seeded = findSeed(leftName, rightName) ?? findSeed(rightName, leftName);
     if (seeded) {
       const [leftEl, rightEl, resultEl] = await Promise.all([
-        getOrCreateElement(leftName),
-        getOrCreateElement(rightName),
-        getOrCreateElement(seeded.result),
+        getOrCreateWord(leftName),
+        getOrCreateWord(rightName),
+        getOrCreateWord(seeded.result),
       ]);
 
       // --- NEW: race-safe create; if someone else created the same triple, fetch and return it ---
       let rec;
       try {
-        rec = await prisma.recipe.create({
+        rec = await prisma.recipeEdge.create({
           data: {
             leftId: leftEl.id,
             rightId: rightEl.id,
             resultId: resultEl.id,
             source: "CANON",
+            isDefault: true,
           },
         });
       } catch (e: any) {
@@ -115,13 +116,13 @@ export async function POST(request: Request) {
       // Persist emoji if provided by seeds and not already set
       let finalEmoji: string | null = null;
       try {
-        const current = await prisma.element.findUnique({
+        const current = await prisma.word.findUnique({
           where: { id: resultEl.id },
           select: { emoji: true },
         });
 
         if (!current?.emoji && seeded.emoji) {
-          await prisma.element.update({
+          await prisma.word.update({
             where: { id: resultEl.id },
             data: { emoji: seeded.emoji.trim() },
           });
@@ -148,7 +149,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2) Ask active provider — now returns ONE best candidate after reranking
+    // 2) Ask active provider ??? now returns ONE best candidate after reranking
     const provider = getProvider();
     const providerName = provider.name ?? "openai";
 
@@ -159,7 +160,7 @@ export async function POST(request: Request) {
       attempt = await provider.combine({ left: leftName, right: rightName });
     }
     if (!attempt?.result) {
-      // Last-resort: explicit 404-ish signal for the UI to show “try different tiles”
+      // Last-resort: explicit 404-ish signal for the UI to show ???try different tiles???
       return Response.json({ error: "no suitable result", hint: "try different words" }, { status: 502 });
     }
 
@@ -171,20 +172,21 @@ export async function POST(request: Request) {
 
     // 3) Upsert elements + create recipe
     const [leftEl, rightEl, resultEl] = await Promise.all([
-      getOrCreateElement(leftName),
-      getOrCreateElement(rightName),
-      getOrCreateElement(result),
+      getOrCreateWord(leftName),
+      getOrCreateWord(rightName),
+      getOrCreateWord(result),
     ]);
 
     // --- NEW: race-safe create with Prisma error handling ---
     let rec;
     try {
-      rec = await prisma.recipe.create({
+      rec = await prisma.recipeEdge.create({
         data: {
           leftId: leftEl.id,
           rightId: rightEl.id,
           resultId: resultEl.id,
           source: toSource(providerName),
+          isDefault: false,
         },
       });
     } catch (e: any) {
@@ -204,14 +206,14 @@ export async function POST(request: Request) {
     // 4) Persist emoji (if none set yet on the element)
     let finalEmoji: string | null = null;
     try {
-      const current = await prisma.element.findUnique({
+      const current = await prisma.word.findUnique({
         where: { id: resultEl.id },
         select: { emoji: true },
       });
 
       if (!current?.emoji && isEmojiLike(providerEmoji)) {
         const trimmed = providerEmoji!.trim();
-        await prisma.element.update({
+        await prisma.word.update({
           where: { id: resultEl.id },
           data: { emoji: trimmed },
         });

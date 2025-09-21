@@ -34,7 +34,7 @@ export class CanonicalWrapper implements CombineProvider {
   async combine(input: CombineInput): Promise<CombineOutput> {
     const { left, right } = input;
     const canon = canonicalFor(left, right);
-    if (canon) return { result: canon, reasoning: "canon", provider: "canon" };
+    if (canon) return { result: canon, provider: "canon" };
     const out = await this.inner.combine(input);
     return { ...out, result: applyAliases(out.result) };
   }

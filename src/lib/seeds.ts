@@ -379,7 +379,7 @@ export async function buildAvoidList(left: string, right: string) {
     for (const a of v.aliases ?? []) avoid.add(a);
   }
 
-  const db = await prisma.recipe.findMany({
+  const db = await prisma.recipeEdge.findMany({
     where: {
       OR: [
         { left: { name: L }, right: { name: R } },
