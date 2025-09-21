@@ -77,16 +77,16 @@ PAIRS = [
 ]
 
 TARGETS = [
-    {"name": "pottery", "emoji": "🏺", "difficulty": "easy", "recipes": [["clay", "fire"], ["clay", "kiln"]]},
-    {"name": "campfire", "emoji": "🏕️", "difficulty": "easy", "recipes": [["ember", "air"], ["tree", "fire"], ["wood", "fire"]]},
-    {"name": "windmill", "emoji": "🌾", "difficulty": "easy", "recipes": [["wind", "earth"], ["wind", "wood"]]},
-    {"name": "greenhouse", "emoji": "🏡", "difficulty": "medium", "recipes": [["garden", "glass"], ["garden", "sunlight"]]},
-    {"name": "compass", "emoji": "🧭", "difficulty": "medium", "recipes": [["lodestone", "wood"], ["lodestone", "glass"]]},
-    {"name": "observatory", "emoji": "🔭", "difficulty": "medium", "recipes": [["lens", "tower"], ["lens", "stone"]]},
-    {"name": "ecosystem", "emoji": "🌍", "difficulty": "hard", "recipes": [["forest", "animals"], ["forest", "life"]]},
-    {"name": "robotics", "emoji": "🤖", "difficulty": "hard", "recipes": [["machine", "intelligence"], ["machine", "circuit"]]},
-    {"name": "satellite", "emoji": "🛰️", "difficulty": "hard", "recipes": [["rocket", "orbit"], ["rocket", "signal"]]},
-    {"name": "symphony", "emoji": "🎼", "difficulty": "hard", "recipes": [["orchestra", "time"], ["orchestra", "emotion"]]},
+    {"name": "pottery", "emoji": "🏺", "recipes": [["clay", "fire"], ["clay", "kiln"]]},
+    {"name": "campfire", "emoji": "🏕️", "recipes": [["ember", "air"], ["tree", "fire"], ["wood", "fire"]]},
+    {"name": "windmill", "emoji": "🌾", "recipes": [["wind", "earth"], ["wind", "wood"]]},
+    {"name": "greenhouse", "emoji": "🏡", "recipes": [["garden", "glass"], ["garden", "sunlight"]]},
+    {"name": "compass", "emoji": "🧭", "recipes": [["lodestone", "wood"], ["lodestone", "glass"]]},
+    {"name": "observatory", "emoji": "🔭", "recipes": [["lens", "tower"], ["lens", "stone"]]},
+    {"name": "ecosystem", "emoji": "🌍", "recipes": [["forest", "animals"], ["forest", "life"]]},
+    {"name": "robotics", "emoji": "🤖", "recipes": [["machine", "intelligence"], ["machine", "circuit"]]},
+    {"name": "satellite", "emoji": "🛰️", "recipes": [["rocket", "orbit"], ["rocket", "signal"]]},
+    {"name": "symphony", "emoji": "🎼", "recipes": [["orchestra", "time"], ["orchestra", "emotion"]]},
 ]
 
 EMOJI_MAP = {

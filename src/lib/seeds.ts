@@ -9,7 +9,6 @@ type Vocab = { name: string; aliases?: string[] };
 type TargetSeed = {
   name: string;
   emoji?: string;
-  difficulty?: string;
   recipes?: Array<{ left?: string; right?: string } | [string, string]>;
 };
 
@@ -26,7 +25,6 @@ type TargetDbPath = { label?: string; steps?: TargetDbStep[] };
 type TargetDbEntry = {
   name?: string;
   emoji?: string;
-  difficulty?: string;
   paths?: TargetDbPath[];
 };
 
@@ -42,12 +40,9 @@ type Recipe = { left: string; right: string };
 export type TargetDefinition = {
   name: string;
   emoji?: string;
-  difficulty: "easy" | "medium" | "hard";
   recipes: Recipe[];
   paths: TargetPath[];
 };
-
-const DIFFICULTIES = new Set(["easy", "medium", "hard"]);
 
 function isEmojiLike(s?: string) {
   if (!s) return false;
@@ -91,11 +86,6 @@ function normalizeDbStep(step: TargetDbStep): PathStep | null {
   return { result, left, right };
 }
 
-function resolveDifficulty(value?: string): "easy" | "medium" | "hard" {
-  const raw = String(value ?? "").toLowerCase();
-  return DIFFICULTIES.has(raw) ? (raw as "easy" | "medium" | "hard") : "easy";
-}
-
 const rawDoc = raw as SeedsDoc | undefined;
 const doc: SeedsDoc = rawDoc ?? { pairs: [] };
 const pairs: Pair[] = (doc.pairs ?? [])
@@ -108,12 +98,11 @@ const pairs: Pair[] = (doc.pairs ?? [])
   }))
   .filter((p) => p.left && p.right && p.result);
 
-const legacyTargets = new Map<string, { name: string; emoji?: string; difficulty: "easy" | "medium" | "hard"; recipes: Recipe[] }>();
+const legacyTargets = new Map<string, { name: string; emoji?: string; recipes: Recipe[] }>();
 for (const entry of doc.targets ?? []) {
   const name = normalizeWord(entry?.name);
   if (!name) continue;
   const emoji = isEmojiLike(entry?.emoji) ? entry!.emoji!.trim() : undefined;
-  const difficulty = resolveDifficulty(entry?.difficulty);
   const recipes: Recipe[] = [];
   const recipeMap = new Map<string, Recipe>();
   for (const rawRecipe of entry.recipes ?? []) {
@@ -123,7 +112,7 @@ for (const entry of doc.targets ?? []) {
     if (!recipeMap.has(key)) recipeMap.set(key, normalized);
   }
   recipes.push(...recipeMap.values());
-  legacyTargets.set(name, { name, emoji, difficulty, recipes });
+  legacyTargets.set(name, { name, emoji, recipes });
 }
 
 const dbDoc = (targetDbRaw as TargetDbDoc) ?? { targets: [] };
@@ -134,7 +123,6 @@ for (const [index, entry] of (dbDoc.targets ?? []).entries()) {
   const name = normalizeWord(entry?.name);
   if (!name || targetMap.has(name)) continue;
   const emoji = isEmojiLike(entry?.emoji) ? entry!.emoji!.trim() : undefined;
-  const difficulty = resolveDifficulty(entry?.difficulty);
   const pathList: TargetPath[] = [];
   const recipeMap = new Map<string, Recipe>();
   const paths = Array.isArray(entry?.paths) ? entry.paths : [];
@@ -160,7 +148,6 @@ for (const [index, entry] of (dbDoc.targets ?? []).entries()) {
   const record: TargetDefinition = {
     name,
     emoji,
-    difficulty,
     recipes: Array.from(recipeMap.values()),
     paths: pathList,
   };
@@ -185,7 +172,6 @@ for (const [name, legacy] of legacyTargets) {
     const record: TargetDefinition = {
       name,
       emoji: legacy.emoji,
-      difficulty: legacy.difficulty,
       recipes: legacy.recipes,
       paths: [],
     };

@@ -4,25 +4,60 @@
     {
       "name": "pottery",
       "emoji": "🏺",
-      "difficulty": "easy",
       "paths": [
         {
           "label": "clay-fire",
           "steps": [
-            { "result": "pottery", "left": "clay", "right": "fire" },
-            { "result": "clay", "left": "mud", "right": "air" },
-            { "result": "mud", "left": "water", "right": "earth" }
+            {
+              "result": "pottery",
+              "left": "clay",
+              "right": "fire"
+            },
+            {
+              "result": "clay",
+              "left": "mud",
+              "right": "air"
+            },
+            {
+              "result": "mud",
+              "left": "water",
+              "right": "earth"
+            }
           ]
         },
         {
           "label": "clay-kiln",
           "steps": [
-            { "result": "pottery", "left": "clay", "right": "kiln" },
-            { "result": "kiln", "left": "brick", "right": "air" },
-            { "result": "brick", "left": "mud", "right": "energy" },
-            { "result": "energy", "left": "fire", "right": "air" },
-            { "result": "clay", "left": "mud", "right": "air" },
-            { "result": "mud", "left": "water", "right": "earth" }
+            {
+              "result": "pottery",
+              "left": "clay",
+              "right": "kiln"
+            },
+            {
+              "result": "kiln",
+              "left": "brick",
+              "right": "air"
+            },
+            {
+              "result": "brick",
+              "left": "mud",
+              "right": "energy"
+            },
+            {
+              "result": "energy",
+              "left": "fire",
+              "right": "air"
+            },
+            {
+              "result": "clay",
+              "left": "mud",
+              "right": "air"
+            },
+            {
+              "result": "mud",
+              "left": "water",
+              "right": "earth"
+            }
           ]
         }
       ]
@@ -30,33 +65,80 @@
     {
       "name": "campfire",
       "emoji": "🏕️",
-      "difficulty": "easy",
       "paths": [
         {
           "label": "ember-air",
           "steps": [
-            { "result": "campfire", "left": "ember", "right": "air" },
-            { "result": "ember", "left": "mud", "right": "fire" },
-            { "result": "mud", "left": "water", "right": "earth" }
+            {
+              "result": "campfire",
+              "left": "ember",
+              "right": "air"
+            },
+            {
+              "result": "ember",
+              "left": "mud",
+              "right": "fire"
+            },
+            {
+              "result": "mud",
+              "left": "water",
+              "right": "earth"
+            }
           ]
         },
         {
           "label": "tree-fire",
           "steps": [
-            { "result": "campfire", "left": "tree", "right": "fire" },
-            { "result": "tree", "left": "sprout", "right": "water" },
-            { "result": "sprout", "left": "seed", "right": "water" },
-            { "result": "seed", "left": "earth", "right": "air" }
+            {
+              "result": "campfire",
+              "left": "tree",
+              "right": "fire"
+            },
+            {
+              "result": "tree",
+              "left": "sprout",
+              "right": "water"
+            },
+            {
+              "result": "sprout",
+              "left": "seed",
+              "right": "water"
+            },
+            {
+              "result": "seed",
+              "left": "earth",
+              "right": "air"
+            }
           ]
         },
         {
           "label": "wood-fire",
           "steps": [
-            { "result": "campfire", "left": "wood", "right": "fire" },
-            { "result": "wood", "left": "tree", "right": "air" },
-            { "result": "tree", "left": "sprout", "right": "water" },
-            { "result": "sprout", "left": "seed", "right": "water" },
-            { "result": "seed", "left": "earth", "right": "air" }
+            {
+              "result": "campfire",
+              "left": "wood",
+              "right": "fire"
+            },
+            {
+              "result": "wood",
+              "left": "tree",
+              "right": "air"
+            },
+            {
+              "result": "tree",
+              "left": "sprout",
+              "right": "water"
+            },
+            {
+              "result": "sprout",
+              "left": "seed",
+              "right": "water"
+            },
+            {
+              "result": "seed",
+              "left": "earth",
+              "right": "air"
+            }
           ]
         }
       ]
@@ -64,26 +146,65 @@
     {
       "name": "windmill",
       "emoji": "🌾",
-      "difficulty": "easy",
       "paths": [
         {
           "label": "wind-earth",
           "steps": [
-            { "result": "windmill", "left": "wind", "right": "earth" },
-            { "result": "wind", "left": "energy", "right": "air" },
-            { "result": "energy", "left": "fire", "right": "air" }
+            {
+              "result": "windmill",
+              "left": "wind",
+              "right": "earth"
+            },
+            {
+              "result": "wind",
+              "left": "energy",
+              "right": "air"
+            },
+            {
+              "result": "energy",
+              "left": "fire",
+              "right": "air"
+            }
           ]
         },
         {
           "label": "wind-wood",
           "steps": [
-            { "result": "windmill", "left": "wind", "right": "wood" },
-            { "result": "wind", "left": "energy", "right": "air" },
-            { "result": "energy", "left": "fire", "right": "air" },
-            { "result": "wood", "left": "tree", "right": "air" },
-            { "result": "tree", "left": "sprout", "right": "water" },
-            { "result": "sprout", "left": "seed", "right": "water" },
-            { "result": "seed", "left": "earth", "right": "air" }
+            {
+              "result": "windmill",
+              "left": "wind",
+              "right": "wood"
+            },
+            {
+              "result": "wind",
+              "left": "energy",
+              "right": "air"
+            },
+            {
+              "result": "energy",
+              "left": "fire",
+              "right": "air"
+            },
+            {
+              "result": "wood",
+              "left": "tree",
+              "right": "air"
+            },
+            {
+              "result": "tree",
+              "left": "sprout",
+              "right": "water"
+            },
+            {
+              "result": "sprout",
+              "left": "seed",
+              "right": "water"
+            },
+            {
+              "result": "seed",
+              "left": "earth",
+              "right": "air"
+            }
           ]
         }
       ]
@@ -91,34 +212,105 @@
     {
       "name": "greenhouse",
       "emoji": "🏡",
-      "difficulty": "medium",
       "paths": [
         {
           "label": "garden-glass",
           "steps": [
-            { "result": "greenhouse", "left": "garden", "right": "glass" },
-            { "result": "garden", "left": "plant", "right": "water" },
-            { "result": "plant", "left": "sprout", "right": "earth" },
-            { "result": "sprout", "left": "seed", "right": "water" },
-            { "result": "seed", "left": "earth", "right": "air" },
-            { "result": "glass", "left": "sand", "right": "fire" },
-            { "result": "sand", "left": "energy", "right": "earth" },
-            { "result": "energy", "left": "fire", "right": "air" }
+            {
+              "result": "greenhouse",
+              "left": "garden",
+              "right": "glass"
+            },
+            {
+              "result": "garden",
+              "left": "plant",
+              "right": "water"
+            },
+            {
+              "result": "plant",
+              "left": "sprout",
+              "right": "earth"
+            },
+            {
+              "result": "sprout",
+              "left": "seed",
+              "right": "water"
+            },
+            {
+              "result": "seed",
+              "left": "earth",
+              "right": "air"
+            },
+            {
+              "result": "glass",
+              "left": "sand",
+              "right": "fire"
+            },
+            {
+              "result": "sand",
+              "left": "energy",
+              "right": "earth"
+            },
+            {
+              "result": "energy",
+              "left": "fire",
+              "right": "air"
+            }
           ]
         },
         {
           "label": "garden-sunlight",
           "steps": [
-            { "result": "greenhouse", "left": "garden", "right": "sunlight" },
-            { "result": "garden", "left": "plant", "right": "water" },
-            { "result": "plant", "left": "sprout", "right": "mist" },
-            { "result": "sprout", "left": "seed", "right": "water" },
-            { "result": "seed", "left": "earth", "right": "air" },
-            { "result": "mist", "left": "water", "right": "air" },
-            { "result": "sunlight", "left": "energy", "right": "glass" },
-            { "result": "glass", "left": "sand", "right": "fire" },
-            { "result": "sand", "left": "energy", "right": "earth" },
-            { "result": "energy", "left": "fire", "right": "air" }
+            {
+              "result": "greenhouse",
+              "left": "garden",
+              "right": "sunlight"
+            },
+            {
+              "result": "garden",
+              "left": "plant",
+              "right": "water"
+            },
+            {
+              "result": "plant",
+              "left": "sprout",
+              "right": "mist"
+            },
+            {
+              "result": "sprout",
+              "left": "seed",
+              "right": "water"
+            },
+            {
+              "result": "seed",
+              "left": "earth",
+              "right": "air"
+            },
+            {
+              "result": "mist",
+              "left": "water",
+              "right": "air"
+            },
+            {
+              "result": "sunlight",
+              "left": "energy",
+              "right": "glass"
+            },
+            {
+              "result": "glass",
+              "left": "sand",
+              "right": "fire"
+            },
+            {
+              "result": "sand",
+              "left": "energy",
+              "right": "earth"
+            },
+            {
+              "result": "energy",
+              "left": "fire",
+              "right": "air"
+            }
           ]
         }
       ]
@@ -126,34 +318,105 @@
     {
       "name": "compass",
       "emoji": "🧭",
-      "difficulty": "medium",
       "paths": [
         {
           "label": "lodestone-wood",
           "steps": [
-            { "result": "compass", "left": "lodestone", "right": "wood" },
-            { "result": "lodestone", "left": "magnet", "right": "sand" },
-            { "result": "magnet", "left": "metal", "right": "energy" },
-            { "result": "metal", "left": "lava", "right": "air" },
-            { "result": "lava", "left": "fire", "right": "earth" },
-            { "result": "wood", "left": "tree", "right": "air" },
-            { "result": "tree", "left": "sprout", "right": "water" },
-            { "result": "sprout", "left": "seed", "right": "water" },
-            { "result": "seed", "left": "earth", "right": "air" },
-            { "result": "energy", "left": "fire", "right": "air" }
+            {
+              "result": "compass",
+              "left": "lodestone",
+              "right": "wood"
+            },
+            {
+              "result": "lodestone",
+              "left": "magnet",
+              "right": "sand"
+            },
+            {
+              "result": "magnet",
+              "left": "metal",
+              "right": "energy"
+            },
+            {
+              "result": "metal",
+              "left": "lava",
+              "right": "air"
+            },
+            {
+              "result": "lava",
+              "left": "fire",
+              "right": "earth"
+            },
+            {
+              "result": "wood",
+              "left": "tree",
+              "right": "air"
+            },
+            {
+              "result": "tree",
+              "left": "sprout",
+              "right": "water"
+            },
+            {
+              "result": "sprout",
+              "left": "seed",
+              "right": "water"
+            },
+            {
+              "result": "seed",
+              "left": "earth",
+              "right": "air"
+            },
+            {
+              "result": "energy",
+              "left": "fire",
+              "right": "air"
+            }
           ]
         },
         {
           "label": "lodestone-glass",
           "steps": [
-            { "result": "compass", "left": "lodestone", "right": "glass" },
-            { "result": "lodestone", "left": "magnet", "right": "sand" },
-            { "result": "magnet", "left": "metal", "right": "energy" },
-            { "result": "metal", "left": "lava", "right": "air" },
-            { "result": "lava", "left": "fire", "right": "earth" },
-            { "result": "glass", "left": "sand", "right": "fire" },
-            { "result": "sand", "left": "energy", "right": "earth" },
-            { "result": "energy", "left": "fire", "right": "air" }
+            {
+              "result": "compass",
+              "left": "lodestone",
+              "right": "glass"
+            },
+            {
+              "result": "lodestone",
+              "left": "magnet",
+              "right": "sand"
+            },
+            {
+              "result": "magnet",
+              "left": "metal",
+              "right": "energy"
+            },
+            {
+              "result": "metal",
+              "left": "lava",
+              "right": "air"
+            },
+            {
+              "result": "lava",
+              "left": "fire",
+              "right": "earth"
+            },
+            {
+              "result": "glass",
+              "left": "sand",
+              "right": "fire"
+            },
+            {
+              "result": "sand",
+              "left": "energy",
+              "right": "earth"
+            },
+            {
+              "result": "energy",
+              "left": "fire",
+              "right": "air"
+            }
           ]
         }
       ]
@@ -161,34 +424,105 @@
     {
       "name": "observatory",
       "emoji": "🔭",
-      "difficulty": "medium",
       "paths": [
         {
           "label": "lens-tower",
           "steps": [
-            { "result": "observatory", "left": "lens", "right": "tower" },
-            { "result": "lens", "left": "glass", "right": "metal" },
-            { "result": "glass", "left": "sand", "right": "fire" },
-            { "result": "sand", "left": "energy", "right": "earth" },
-            { "result": "energy", "left": "fire", "right": "air" },
-            { "result": "metal", "left": "lava", "right": "air" },
-            { "result": "lava", "left": "fire", "right": "earth" },
-            { "result": "tower", "left": "brick", "right": "brick" },
-            { "result": "brick", "left": "mud", "right": "energy" },
-            { "result": "mud", "left": "water", "right": "earth" }
+            {
+              "result": "observatory",
+              "left": "lens",
+              "right": "tower"
+            },
+            {
+              "result": "lens",
+              "left": "glass",
+              "right": "metal"
+            },
+            {
+              "result": "glass",
+              "left": "sand",
+              "right": "fire"
+            },
+            {
+              "result": "sand",
+              "left": "energy",
+              "right": "earth"
+            },
+            {
+              "result": "energy",
+              "left": "fire",
+              "right": "air"
+            },
+            {
+              "result": "metal",
+              "left": "lava",
+              "right": "air"
+            },
+            {
+              "result": "lava",
+              "left": "fire",
+              "right": "earth"
+            },
+            {
+              "result": "tower",
+              "left": "brick",
+              "right": "brick"
+            },
+            {
+              "result": "brick",
+              "left": "mud",
+              "right": "energy"
+            },
+            {
+              "result": "mud",
+              "left": "water",
+              "right": "earth"
+            }
           ]
         },
         {
           "label": "lens-stone",
           "steps": [
-            { "result": "observatory", "left": "lens", "right": "stone" },
-            { "result": "lens", "left": "glass", "right": "metal" },
-            { "result": "glass", "left": "sand", "right": "fire" },
-            { "result": "sand", "left": "energy", "right": "earth" },
-            { "result": "energy", "left": "fire", "right": "air" },
-            { "result": "metal", "left": "lava", "right": "air" },
-            { "result": "lava", "left": "fire", "right": "earth" },
-            { "result": "stone", "left": "lava", "right": "water" }
+            {
+              "result": "observatory",
+              "left": "lens",
+              "right": "stone"
+            },
+            {
+              "result": "lens",
+              "left": "glass",
+              "right": "metal"
+            },
+            {
+              "result": "glass",
+              "left": "sand",
+              "right": "fire"
+            },
+            {
+              "result": "sand",
+              "left": "energy",
+              "right": "earth"
+            },
+            {
+              "result": "energy",
+              "left": "fire",
+              "right": "air"
+            },
+            {
+              "result": "metal",
+              "left": "lava",
+              "right": "air"
+            },
+            {
+              "result": "lava",
+              "left": "fire",
+              "right": "earth"
+            },
+            {
+              "result": "stone",
+              "left": "lava",
+              "right": "water"
+            }
           ]
         }
       ]
@@ -196,35 +530,110 @@
     {
       "name": "ecosystem",
       "emoji": "🌍",
-      "difficulty": "hard",
       "paths": [
         {
           "label": "forest-animals",
           "steps": [
-            { "result": "ecosystem", "left": "forest", "right": "animals" },
-            { "result": "forest", "left": "grove", "right": "water" },
-            { "result": "grove", "left": "plant", "right": "plant" },
-            { "result": "plant", "left": "sprout", "right": "earth" },
-            { "result": "sprout", "left": "seed", "right": "water" },
-            { "result": "seed", "left": "earth", "right": "air" },
-            { "result": "animals", "left": "fauna", "right": "plant" },
-            { "result": "fauna", "left": "life", "right": "water" },
-            { "result": "life", "left": "seed", "right": "energy" },
-            { "result": "energy", "left": "fire", "right": "air" }
+            {
+              "result": "ecosystem",
+              "left": "forest",
+              "right": "animals"
+            },
+            {
+              "result": "forest",
+              "left": "grove",
+              "right": "water"
+            },
+            {
+              "result": "grove",
+              "left": "plant",
+              "right": "plant"
+            },
+            {
+              "result": "plant",
+              "left": "sprout",
+              "right": "earth"
+            },
+            {
+              "result": "sprout",
+              "left": "seed",
+              "right": "water"
+            },
+            {
+              "result": "seed",
+              "left": "earth",
+              "right": "air"
+            },
+            {
+              "result": "animals",
+              "left": "fauna",
+              "right": "plant"
+            },
+            {
+              "result": "fauna",
+              "left": "life",
+              "right": "water"
+            },
+            {
+              "result": "life",
+              "left": "seed",
+              "right": "energy"
+            },
+            {
+              "result": "energy",
+              "left": "fire",
+              "right": "air"
+            }
           ]
         },
         {
           "label": "forest-life",
           "steps": [
-            { "result": "ecosystem", "left": "forest", "right": "life" },
-            { "result": "forest", "left": "grove", "right": "water" },
-            { "result": "grove", "left": "plant", "right": "plant" },
-            { "result": "plant", "left": "sprout", "right": "mist" },
-            { "result": "sprout", "left": "seed", "right": "water" },
-            { "result": "seed", "left": "earth", "right": "air" },
-            { "result": "mist", "left": "water", "right": "air" },
-            { "result": "life", "left": "seed", "right": "energy" },
-            { "result": "energy", "left": "fire", "right": "air" }
+            {
+              "result": "ecosystem",
+              "left": "forest",
+              "right": "life"
+            },
+            {
+              "result": "forest",
+              "left": "grove",
+              "right": "water"
+            },
+            {
+              "result": "grove",
+              "left": "plant",
+              "right": "plant"
+            },
+            {
+              "result": "plant",
+              "left": "sprout",
+              "right": "mist"
+            },
+            {
+              "result": "sprout",
+              "left": "seed",
+              "right": "water"
+            },
+            {
+              "result": "seed",
+              "left": "earth",
+              "right": "air"
+            },
+            {
+              "result": "mist",
+              "left": "water",
+              "right": "air"
+            },
+            {
+              "result": "life",
+              "left": "seed",
+              "right": "energy"
+            },
+            {
+              "result": "energy",
+              "left": "fire",
+              "right": "air"
+            }
           ]
         }
       ]
@@ -232,38 +641,125 @@
     {
       "name": "robotics",
       "emoji": "🤖",
-      "difficulty": "hard",
       "paths": [
         {
           "label": "machine-intelligence",
           "steps": [
-            { "result": "robotics", "left": "machine", "right": "intelligence" },
-            { "result": "machine", "left": "circuit", "right": "metal" },
-            { "result": "circuit", "left": "wire", "right": "glass" },
-            { "result": "wire", "left": "metal", "right": "mist" },
-            { "result": "metal", "left": "lava", "right": "air" },
-            { "result": "lava", "left": "fire", "right": "earth" },
-            { "result": "glass", "left": "sand", "right": "fire" },
-            { "result": "sand", "left": "energy", "right": "earth" },
-            { "result": "energy", "left": "fire", "right": "air" },
-            { "result": "mist", "left": "water", "right": "air" },
-            { "result": "intelligence", "left": "thought", "right": "energy" },
-            { "result": "thought", "left": "mist", "right": "energy" }
+            {
+              "result": "robotics",
+              "left": "machine",
+              "right": "intelligence"
+            },
+            {
+              "result": "machine",
+              "left": "circuit",
+              "right": "metal"
+            },
+            {
+              "result": "circuit",
+              "left": "wire",
+              "right": "glass"
+            },
+            {
+              "result": "wire",
+              "left": "metal",
+              "right": "mist"
+            },
+            {
+              "result": "metal",
+              "left": "lava",
+              "right": "air"
+            },
+            {
+              "result": "lava",
+              "left": "fire",
+              "right": "earth"
+            },
+            {
+              "result": "glass",
+              "left": "sand",
+              "right": "fire"
+            },
+            {
+              "result": "sand",
+              "left": "energy",
+              "right": "earth"
+            },
+            {
+              "result": "energy",
+              "left": "fire",
+              "right": "air"
+            },
+            {
+              "result": "mist",
+              "left": "water",
+              "right": "air"
+            },
+            {
+              "result": "intelligence",
+              "left": "thought",
+              "right": "energy"
+            },
+            {
+              "result": "thought",
+              "left": "mist",
+              "right": "energy"
+            }
           ]
         },
         {
           "label": "machine-circuit",
           "steps": [
-            { "result": "robotics", "left": "machine", "right": "circuit" },
-            { "result": "machine", "left": "circuit", "right": "metal" },
-            { "result": "circuit", "left": "wire", "right": "glass" },
-            { "result": "wire", "left": "metal", "right": "mist" },
-            { "result": "metal", "left": "lava", "right": "air" },
-            { "result": "lava", "left": "fire", "right": "earth" },
-            { "result": "glass", "left": "sand", "right": "fire" },
-            { "result": "sand", "left": "energy", "right": "earth" },
-            { "result": "energy", "left": "fire", "right": "air" },
-            { "result": "mist", "left": "water", "right": "air" }
+            {
+              "result": "robotics",
+              "left": "machine",
+              "right": "circuit"
+            },
+            {
+              "result": "machine",
+              "left": "circuit",
+              "right": "metal"
+            },
+            {
+              "result": "circuit",
+              "left": "wire",
+              "right": "glass"
+            },
+            {
+              "result": "wire",
+              "left": "metal",
+              "right": "mist"
+            },
+            {
+              "result": "metal",
+              "left": "lava",
+              "right": "air"
+            },
+            {
+              "result": "lava",
+              "left": "fire",
+              "right": "earth"
+            },
+            {
+              "result": "glass",
+              "left": "sand",
+              "right": "fire"
+            },
+            {
+              "result": "sand",
+              "left": "energy",
+              "right": "earth"
+            },
+            {
+              "result": "energy",
+              "left": "fire",
+              "right": "air"
+            },
+            {
+              "result": "mist",
+              "left": "water",
+              "right": "air"
+            }
           ]
         }
       ]
@@ -271,44 +767,155 @@
     {
       "name": "satellite",
       "emoji": "🛰️",
-      "difficulty": "hard",
       "paths": [
         {
           "label": "rocket-orbit",
           "steps": [
-            { "result": "satellite", "left": "rocket", "right": "orbit" },
-            { "result": "rocket", "left": "engine", "right": "circuit" },
-            { "result": "engine", "left": "thrust", "right": "metal" },
-            { "result": "thrust", "left": "wind", "right": "fire" },
-            { "result": "wind", "left": "energy", "right": "air" },
-            { "result": "energy", "left": "fire", "right": "air" },
-            { "result": "metal", "left": "lava", "right": "air" },
-            { "result": "lava", "left": "fire", "right": "earth" },
-            { "result": "circuit", "left": "wire", "right": "glass" },
-            { "result": "wire", "left": "metal", "right": "mist" },
-            { "result": "mist", "left": "water", "right": "air" },
-            { "result": "glass", "left": "sand", "right": "fire" },
-            { "result": "sand", "left": "energy", "right": "earth" },
-            { "result": "orbit", "left": "sky", "right": "wind" },
-            { "result": "sky", "left": "sunlight", "right": "air" },
-            { "result": "sunlight", "left": "energy", "right": "glass" }
+            {
+              "result": "satellite",
+              "left": "rocket",
+              "right": "orbit"
+            },
+            {
+              "result": "rocket",
+              "left": "engine",
+              "right": "circuit"
+            },
+            {
+              "result": "engine",
+              "left": "thrust",
+              "right": "metal"
+            },
+            {
+              "result": "thrust",
+              "left": "wind",
+              "right": "fire"
+            },
+            {
+              "result": "wind",
+              "left": "energy",
+              "right": "air"
+            },
+            {
+              "result": "energy",
+              "left": "fire",
+              "right": "air"
+            },
+            {
+              "result": "metal",
+              "left": "lava",
+              "right": "air"
+            },
+            {
+              "result": "lava",
+              "left": "fire",
+              "right": "earth"
+            },
+            {
+              "result": "circuit",
+              "left": "wire",
+              "right": "glass"
+            },
+            {
+              "result": "wire",
+              "left": "metal",
+              "right": "mist"
+            },
+            {
+              "result": "mist",
+              "left": "water",
+              "right": "air"
+            },
+            {
+              "result": "glass",
+              "left": "sand",
+              "right": "fire"
+            },
+            {
+              "result": "sand",
+              "left": "energy",
+              "right": "earth"
+            },
+            {
+              "result": "orbit",
+              "left": "sky",
+              "right": "wind"
+            },
+            {
+              "result": "sky",
+              "left": "sunlight",
+              "right": "air"
+            },
+            {
+              "result": "sunlight",
+              "left": "energy",
+              "right": "glass"
+            }
           ]
         },
         {
           "label": "rocket-signal",
           "steps": [
-            { "result": "satellite", "left": "rocket", "right": "signal" },
-            { "result": "rocket", "left": "engine", "right": "wind" },
-            { "result": "engine", "left": "thrust", "right": "metal" },
-            { "result": "thrust", "left": "wind", "right": "fire" },
-            { "result": "wind", "left": "energy", "right": "air" },
-            { "result": "energy", "left": "fire", "right": "air" },
-            { "result": "metal", "left": "lava", "right": "air" },
-            { "result": "lava", "left": "fire", "right": "earth" },
-            { "result": "signal", "left": "pulse", "right": "wind" },
-            { "result": "pulse", "left": "energy", "right": "energy" },
-            { "result": "glass", "left": "sand", "right": "fire" },
-            { "result": "sand", "left": "energy", "right": "earth" }
+            {
+              "result": "satellite",
+              "left": "rocket",
+              "right": "signal"
+            },
+            {
+              "result": "rocket",
+              "left": "engine",
+              "right": "wind"
+            },
+            {
+              "result": "engine",
+              "left": "thrust",
+              "right": "metal"
+            },
+            {
+              "result": "thrust",
+              "left": "wind",
+              "right": "fire"
+            },
+            {
+              "result": "wind",
+              "left": "energy",
+              "right": "air"
+            },
+            {
+              "result": "energy",
+              "left": "fire",
+              "right": "air"
+            },
+            {
+              "result": "metal",
+              "left": "lava",
+              "right": "air"
+            },
+            {
+              "result": "lava",
+              "left": "fire",
+              "right": "earth"
+            },
+            {
+              "result": "signal",
+              "left": "pulse",
+              "right": "wind"
+            },
+            {
+              "result": "pulse",
+              "left": "energy",
+              "right": "energy"
+            },
+            {
+              "result": "glass",
+              "left": "sand",
+              "right": "fire"
+            },
+            {
+              "result": "sand",
+              "left": "energy",
+              "right": "earth"
+            }
           ]
         }
       ]
@@ -316,48 +923,175 @@
     {
       "name": "symphony",
       "emoji": "🎼",
-      "difficulty": "hard",
       "paths": [
         {
           "label": "orchestra-time",
           "steps": [
-            { "result": "symphony", "left": "orchestra", "right": "time" },
-            { "result": "orchestra", "left": "music", "right": "community" },
-            { "result": "music", "left": "sound", "right": "emotion" },
-            { "result": "sound", "left": "steam", "right": "air" },
-            { "result": "steam", "left": "fire", "right": "water" },
-            { "result": "emotion", "left": "life", "right": "air" },
-            { "result": "life", "left": "seed", "right": "energy" },
-            { "result": "seed", "left": "earth", "right": "air" },
-            { "result": "community", "left": "village", "right": "village" },
-            { "result": "village", "left": "wood", "right": "seed" },
-            { "result": "wood", "left": "tree", "right": "air" },
-            { "result": "tree", "left": "sprout", "right": "water" },
-            { "result": "sprout", "left": "seed", "right": "water" },
-            { "result": "time", "left": "pulse", "right": "glass" },
-            { "result": "pulse", "left": "energy", "right": "energy" },
-            { "result": "glass", "left": "sand", "right": "fire" },
-            { "result": "sand", "left": "energy", "right": "earth" },
-            { "result": "energy", "left": "fire", "right": "air" }
+            {
+              "result": "symphony",
+              "left": "orchestra",
+              "right": "time"
+            },
+            {
+              "result": "orchestra",
+              "left": "music",
+              "right": "community"
+            },
+            {
+              "result": "music",
+              "left": "sound",
+              "right": "emotion"
+            },
+            {
+              "result": "sound",
+              "left": "steam",
+              "right": "air"
+            },
+            {
+              "result": "steam",
+              "left": "fire",
+              "right": "water"
+            },
+            {
+              "result": "emotion",
+              "left": "life",
+              "right": "air"
+            },
+            {
+              "result": "life",
+              "left": "seed",
+              "right": "energy"
+            },
+            {
+              "result": "seed",
+              "left": "earth",
+              "right": "air"
+            },
+            {
+              "result": "community",
+              "left": "village",
+              "right": "village"
+            },
+            {
+              "result": "village",
+              "left": "wood",
+              "right": "seed"
+            },
+            {
+              "result": "wood",
+              "left": "tree",
+              "right": "air"
+            },
+            {
+              "result": "tree",
+              "left": "sprout",
+              "right": "water"
+            },
+            {
+              "result": "sprout",
+              "left": "seed",
+              "right": "water"
+            },
+            {
+              "result": "time",
+              "left": "pulse",
+              "right": "glass"
+            },
+            {
+              "result": "pulse",
+              "left": "energy",
+              "right": "energy"
+            },
+            {
+              "result": "glass",
+              "left": "sand",
+              "right": "fire"
+            },
+            {
+              "result": "sand",
+              "left": "energy",
+              "right": "earth"
+            },
+            {
+              "result": "energy",
+              "left": "fire",
+              "right": "air"
+            }
           ]
         },
         {
           "label": "orchestra-emotion",
           "steps": [
-            { "result": "symphony", "left": "orchestra", "right": "emotion" },
-            { "result": "orchestra", "left": "music", "right": "community" },
-            { "result": "music", "left": "sound", "right": "emotion" },
-            { "result": "sound", "left": "steam", "right": "air" },
-            { "result": "steam", "left": "fire", "right": "water" },
-            { "result": "emotion", "left": "life", "right": "air" },
-            { "result": "life", "left": "seed", "right": "energy" },
-            { "result": "seed", "left": "earth", "right": "air" },
-            { "result": "community", "left": "village", "right": "village" },
-            { "result": "village", "left": "wood", "right": "seed" },
-            { "result": "wood", "left": "tree", "right": "air" },
-            { "result": "tree", "left": "sprout", "right": "water" },
-            { "result": "sprout", "left": "seed", "right": "water" },
-            { "result": "energy", "left": "fire", "right": "air" }
+            {
+              "result": "symphony",
+              "left": "orchestra",
+              "right": "emotion"
+            },
+            {
+              "result": "orchestra",
+              "left": "music",
+              "right": "community"
+            },
+            {
+              "result": "music",
+              "left": "sound",
+              "right": "emotion"
+            },
+            {
+              "result": "sound",
+              "left": "steam",
+              "right": "air"
+            },
+            {
+              "result": "steam",
+              "left": "fire",
+              "right": "water"
+            },
+            {
+              "result": "emotion",
+              "left": "life",
+              "right": "air"
+            },
+            {
+              "result": "life",
+              "left": "seed",
+              "right": "energy"
+            },
+            {
+              "result": "seed",
+              "left": "earth",
+              "right": "air"
+            },
+            {
+              "result": "community",
+              "left": "village",
+              "right": "village"
+            },
+            {
+              "result": "village",
+              "left": "wood",
+              "right": "seed"
+            },
+            {
+              "result": "wood",
+              "left": "tree",
+              "right": "air"
+            },
+            {
+              "result": "tree",
+              "left": "sprout",
+              "right": "water"
+            },
+            {
+              "result": "sprout",
+              "left": "seed",
+              "right": "water"
+            },
+            {
+              "result": "energy",
+              "left": "fire",
+              "right": "air"
+            }
           ]
         }
       ]
