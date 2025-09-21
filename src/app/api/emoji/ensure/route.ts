@@ -9,16 +9,16 @@ export async function POST(req: Request) {
     const name = normalizeName(raw);
     if (!name) return Response.json({ error: "name required" }, { status: 400 });
 
-    // element must exist already; if not, create it empty
-    const el = await prisma.element.upsert({
+    const word = await prisma.word.upsert({
       where: { name },
       update: {},
       create: { name },
     });
 
-    const emoji = await ensureElementEmoji(el.name);
-    return Response.json({ name: el.name, emoji }, { status: 200 });
-  } catch (e: any) {
-    return Response.json({ error: e?.message || "failed" }, { status: 500 });
+    const emoji = await ensureElementEmoji(word.name);
+    return Response.json({ name: word.name, emoji }, { status: 200 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "failed";
+    return Response.json({ error: message }, { status: 500 });
   }
 }

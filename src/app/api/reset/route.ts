@@ -1,18 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import { normalizeName } from "@/lib/normalize";
-import { pairKey } from "@/lib/text";
 
-// Seed data (lowercase internally)
-const STARTERS = ["fire", "water", "earth", "wind"] as const;
-
-// Core recipes using "wind" (not "air")
+const STARTERS = ["fire", "water", "earth", "air"] as const;
 const CORE: Array<[string, string, string]> = [
   ["fire", "water", "steam"],
   ["earth", "water", "mud"],
   ["earth", "fire", "lava"],
-  ["wind", "earth", "dust"],
-  ["wind", "water", "rain"],
-  ["wind", "fire", "energy"],
+  ["air", "earth", "dust"],
+  ["air", "water", "rain"],
+  ["air", "fire", "energy"],
 ];
 
 export async function POST() {
@@ -20,27 +16,39 @@ export async function POST() {
     return Response.json({ error: "Reset disabled in production" }, { status: 403 });
   }
 
-  // wipe tables (recipes reference elements, so delete recipes first)
-  await prisma.recipe.deleteMany({});
-  await prisma.element.deleteMany({});
+  await prisma.recipeEdge.deleteMany({});
+  await prisma.word.deleteMany({});
 
-  // upsert all elements (starters + results)
-  const allElementNames = new Set<string>(STARTERS);
-  for (const [, , res] of CORE) allElementNames.add(res);
+  const allNames = new Set<string>(STARTERS);
+  for (const [, , result] of CORE) allNames.add(result);
 
-  const elementIdByName = new Map<string, number>();
-  for (const rawName of allElementNames) {
+  const wordIdByName = new Map<string, number>();
+  for (const rawName of allNames) {
     const name = normalizeName(rawName);
-    const el = await prisma.element.create({ data: { name } });
-    elementIdByName.set(name, el.id);
+    const word = await prisma.word.create({
+      data: {
+        name,
+        isStarter: STARTERS.includes(name as typeof STARTERS[number]),
+        isGoal: false,
+      },
+    });
+    wordIdByName.set(name, word.id);
   }
 
-  // create recipes (order-agnostic)
-  for (const [l, r, res] of CORE) {
-    const leftId = elementIdByName.get(normalizeName(l))!;
-    const rightId = elementIdByName.get(normalizeName(r))!;
-    const resultId = elementIdByName.get(normalizeName(res))!;
-    await prisma.recipe.create({ data: { leftId, rightId, resultId } });
+  for (const [left, right, result] of CORE) {
+    const leftId = wordIdByName.get(normalizeName(left));
+    const rightId = wordIdByName.get(normalizeName(right));
+    const resultId = wordIdByName.get(normalizeName(result));
+    if (!leftId || !rightId || !resultId) continue;
+    await prisma.recipeEdge.create({
+      data: {
+        leftId,
+        rightId,
+        resultId,
+        source: "CANON",
+        isDefault: true,
+      },
+    });
   }
 
   return Response.json(
@@ -48,7 +56,7 @@ export async function POST() {
       ok: true,
       starters: STARTERS,
       recipes: CORE.map(([a, b, c]) => ({ a, b, c })),
-      count: { elements: elementIdByName.size, recipes: CORE.length },
+      count: { words: wordIdByName.size, recipes: CORE.length },
     },
     { status: 200 }
   );

@@ -65,7 +65,7 @@ export class OllamaProvider implements CombineProvider {
       const raw = await ollamaGenerate(this.url, this.model, prompt, controller.signal);
       const parsed = postProcess(raw);
       const result = parsed ?? normalizeName(`${left} ${right}`); // fallback
-      return { result, reasoning: parsed ? "ollama" : "ollama:fallback", provider: "ollama" };
+      return { result, provider: "ollama" };
     } finally {
       clearTimeout(t);
     }

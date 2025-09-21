@@ -1,11 +1,12 @@
-// prisma/seed.js
-
 const path = require("path");
 const fs = require("fs/promises");
 const { PrismaClient } = require("@prisma/client");
-const targetDb = require("../src/data/targetDatabase.json");
 
 const prisma = new PrismaClient();
+
+const FALLBACK_EMOJI = "??";
+const DEFAULT_GRAPH_PATH = path.resolve(__dirname, "../src/data/defaultRecipeGraph.json");
+const MANUAL_GRAPH_PATH = path.resolve(__dirname, "../src/data/manualRecipes.json");
 
 function normalizeName(input) {
   return String(input ?? "")
@@ -21,287 +22,278 @@ function isEmojiLike(value) {
   return /\p{Extended_Pictographic}/u.test(trimmed);
 }
 
-let targetPathIssues = [];
+function canonicalPair(a, b) {
+  const left = normalizeName(a);
+  const right = normalizeName(b);
+  if (!left || !right) return [left, right];
+  return left <= right ? [left, right] : [right, left];
+}
 
 function recipeKey(left, right, result) {
-  const L = normalizeName(left);
-  const R = normalizeName(right);
+  const [a, b] = canonicalPair(left, right);
   const target = normalizeName(result);
-  if (!L || !R || !target) return null;
-  const a = L <= R ? L : R;
-  const b = L <= R ? R : L;
+  if (!a || !b || !target) return null;
   return `${a}::${b}::${target}`;
 }
 
-function collectMissingTargetSteps(pairs) {
-  const existing = new Set();
-  for (const pair of pairs) {
-    const key = recipeKey(pair.left, pair.right, pair.result);
-    if (key) existing.add(key);
+async function readJson(filePath) {
+  try {
+    let raw = await fs.readFile(filePath, "utf-8");
+    if (raw.charCodeAt(0) === 0xfeff) raw = raw.slice(1);
+    return JSON.parse(raw);
+  } catch (err) {
+    if (err.code === "ENOENT") return null;
+    throw err;
   }
-
-  const missing = new Map();
-  const entries = Array.isArray(targetDb.targets) ? targetDb.targets : [];
-  for (const entry of entries) {
-    const targetName = normalizeName(entry?.name);
-    if (!targetName) continue;
-    const paths = Array.isArray(entry?.paths) ? entry.paths : [];
-    paths.forEach((path, pathIndex) => {
-      const label = typeof path?.label === "string" && path.label.trim()
-        ? path.label.trim()
-        : `path-${pathIndex + 1}`;
-      const steps = Array.isArray(path?.steps) ? path.steps : [];
-      for (const step of steps) {
-        const key = recipeKey(step?.left, step?.right, step?.result);
-        if (!key || existing.has(key) || missing.has(key)) continue;
-        missing.set(key, {
-          target: targetName,
-          label,
-          step: {
-            left: normalizeName(step.left),
-            right: normalizeName(step.right),
-            result: normalizeName(step.result),
-          },
-        });
-      }
-    });
-  }
-
-  return Array.from(missing.values());
 }
 
-async function loadSeeds() {
-  const seedPath = path.resolve(__dirname, "../src/data/seeds.json");
-  const raw = await fs.readFile(seedPath, "utf-8");
-  const doc = JSON.parse(raw);
+async function loadGraph(filePath, defaults) {
+  const doc = await readJson(filePath);
   if (!doc || typeof doc !== "object") {
-    throw new Error("seeds.json did not contain an object");
+    return { words: [], recipes: [], defaults };
   }
 
-  const rawPairs = Array.isArray(doc.pairs) ? doc.pairs : [];
-  const elementsMeta = new Map();
-  const seen = new Set();
-  const pairs = [];
-
-  for (const entry of rawPairs) {
-    const left = normalizeName(entry?.left);
-    const right = normalizeName(entry?.right);
-    const result = normalizeName(entry?.result);
-    if (!left || !right || !result) continue;
-
-    const key = left <= right ? `${left}::${right}::${result}` : `${right}::${left}::${result}`;
-    if (seen.has(key)) {
-      throw new Error(`Duplicate seed pair detected for ${left} + ${right} -> ${result}`);
-    }
-    seen.add(key);
-
-    const emoji = isEmojiLike(entry?.emoji) ? entry.emoji.trim() : null;
-    pairs.push({ left, right, result, emoji });
-
-    const names = [left, right, result];
-    for (const name of names) {
-      if (!elementsMeta.has(name)) elementsMeta.set(name, {});
-    }
-    if (emoji) {
-      const meta = elementsMeta.get(result) ?? {};
-      if (!meta.emoji) meta.emoji = emoji;
-      elementsMeta.set(result, meta);
-    }
-  }
-
-  const rawElements = Array.isArray(doc.elements) ? doc.elements : [];
-  for (const entry of rawElements) {
+  const words = [];
+  const entries = Array.isArray(doc.words) ? doc.words : [];
+  for (const entry of entries) {
     const name = normalizeName(entry?.name);
     if (!name) continue;
-    const meta = elementsMeta.get(name) ?? {};
-    if (isEmojiLike(entry?.emoji)) meta.emoji = entry.emoji.trim();
-    if (typeof entry?.starter === "boolean") meta.isStarter = entry.starter;
-    if (typeof entry?.tier === "number" && Number.isFinite(entry.tier)) {
-      meta.tier = Math.max(0, Math.round(entry.tier));
-    }
-    if (typeof entry?.goal === "boolean") meta.isGoal = entry.goal;
-    elementsMeta.set(name, meta);
+    const emoji = isEmojiLike(entry?.emoji) ? entry.emoji.trim() : undefined;
+    const category = typeof entry?.category === "string" && entry.category.trim() ? entry.category.trim() : undefined;
+    const tier = Number.isFinite(entry?.tier) ? Math.max(0, Math.round(entry.tier)) : undefined;
+    const starter = entry?.starter === true;
+    const goal = entry?.goal === true;
+    words.push({ name, emoji, category, tier, starter, goal });
   }
 
-  targetPathIssues = collectMissingTargetSteps(pairs);
-
-  return { pairs, elementsMeta };
-}
-
-async function upsertElements(pairs, elementsMeta) {
-  const names = new Set();
-  const idByName = new Map();
-  const missingEmoji = [];
-
-  for (const { left, right, result, emoji } of pairs) {
-    names.add(left);
-    names.add(right);
-    names.add(result);
-    if (emoji) {
-      const meta = elementsMeta.get(result) ?? {};
-      if (!meta.emoji) meta.emoji = emoji;
-      elementsMeta.set(result, meta);
-    }
-  }
-  for (const name of elementsMeta.keys()) names.add(name);
-
-  const sortedNames = Array.from(names).sort();
-
-  for (const name of sortedNames) {
-    const meta = elementsMeta.get(name) ?? {};
-    let emoji = meta.emoji;
-    if (!isEmojiLike(emoji)) {
-      emoji = null;
-    }
-
-    const existing = await prisma.element.findUnique({ where: { name } });
-    const createEmoji = emoji ?? "??";
-    const updateEmoji = emoji ? emoji : (!existing?.emoji ? "??" : undefined);
-    if (!emoji) missingEmoji.push(name);
-
-    const createData = {
-      name,
-      emoji: createEmoji,
-      isStarter: !!meta.isStarter,
-      isGoal: meta.isGoal ?? false,
-    };
-    if (meta.tier !== undefined && meta.tier !== null) {
-      createData.tier = Math.max(0, Math.round(meta.tier));
-    }
-
-    const updateData = {
-      isStarter: !!meta.isStarter,
-      isGoal: meta.isGoal ?? false,
-    };
-    if (meta.tier !== undefined && meta.tier !== null) {
-      updateData.tier = Math.max(0, Math.round(meta.tier));
-    }
-    if (updateEmoji) {
-      updateData.emoji = updateEmoji;
-    }
-
-    const element = await prisma.element.upsert({
-      where: { name },
-      create: createData,
-      update: updateData,
-    });
-
-    idByName.set(name, element.id);
-    meta.emoji = element.emoji ?? createEmoji;
-    elementsMeta.set(name, meta);
-  }
-
-  return { idByName, missingEmoji };
-}
-
-async function upsertRecipes(pairs, idByName) {
-  await prisma.recipe.deleteMany({ where: { source: "CANON" } });
-
-  for (const { left, right, result } of pairs) {
-    const leftId = idByName.get(left);
-    const rightId = idByName.get(right);
-    const resultId = idByName.get(result);
-
-    if (!leftId || !rightId || !resultId) {
-      throw new Error(`Missing element id when creating recipe: ${left} + ${right} -> ${result}`);
-    }
-
-    await prisma.recipe.create({
-      data: {
-        leftId,
-        rightId,
-        resultId,
-        source: "CANON",
-      },
+  const recipes = [];
+  const rawRecipes = Array.isArray(doc.recipes) ? doc.recipes : [];
+  for (const entry of rawRecipes) {
+    const result = normalizeName(entry?.result);
+    const leftRaw = normalizeName(entry?.left);
+    const rightRaw = normalizeName(entry?.right);
+    if (!result || !leftRaw || !rightRaw) continue;
+    const [left, right] = canonicalPair(leftRaw, rightRaw);
+    const emoji = isEmojiLike(entry?.emoji) ? entry.emoji.trim() : undefined;
+    const category = typeof entry?.category === "string" && entry.category.trim() ? entry.category.trim() : undefined;
+    const source = typeof entry?.source === "string" && entry.source.trim()
+      ? entry.source.trim().toUpperCase()
+      : defaults.source;
+    const isDefault = entry?.isDefault !== undefined ? !!entry.isDefault : !!defaults.isDefault;
+    recipes.push({
+      left,
+      right,
+      result,
+      emoji,
+      category,
+      source,
+      isDefault,
+      origin: defaults.origin,
     });
   }
+
+  return { words, recipes, defaults };
 }
 
-function computeTiers(pairs, elementsMeta) {
+function mergeGraphDocs(docs) {
+  const wordMeta = new Map();
+  const recipeMap = new Map();
+
+  for (const doc of docs) {
+    for (const word of doc.words) {
+      const meta = wordMeta.get(word.name) ?? {};
+      if (word.emoji) meta.emoji = word.emoji;
+      if (word.category) meta.category = word.category;
+      if (word.tier !== undefined) meta.tier = word.tier;
+      if (word.starter !== undefined) meta.isStarter = !!word.starter;
+      if (word.goal !== undefined) meta.isGoal = !!word.goal;
+      wordMeta.set(word.name, meta);
+    }
+
+    for (const recipe of doc.recipes) {
+      const key = recipeKey(recipe.left, recipe.right, recipe.result);
+      if (!key) continue;
+      const existing = recipeMap.get(key) ?? {};
+      const merged = {
+        left: recipe.left,
+        right: recipe.right,
+        result: recipe.result,
+        category: recipe.category ?? existing.category ?? null,
+        emoji: recipe.emoji ?? existing.emoji ?? null,
+        source: recipe.source ?? existing.source ?? (recipe.isDefault ? "CANON" : "MANUAL"),
+        isDefault: recipe.isDefault ?? existing.isDefault ?? false,
+        origin: recipe.origin ?? existing.origin ?? "unknown",
+      };
+      recipeMap.set(key, merged);
+
+      if (!wordMeta.has(recipe.left)) wordMeta.set(recipe.left, {});
+      if (!wordMeta.has(recipe.right)) wordMeta.set(recipe.right, {});
+      const resultMeta = wordMeta.get(recipe.result) ?? {};
+      if (recipe.emoji && !resultMeta.emoji) resultMeta.emoji = recipe.emoji;
+      if (recipe.category && !resultMeta.category) resultMeta.category = recipe.category;
+      wordMeta.set(recipe.result, resultMeta);
+    }
+  }
+
+  return { wordMeta, recipeMap };
+}
+
+function computeTiers(recipes, starters) {
   const tiers = new Map();
-  const starters = new Set();
-  for (const [name, meta] of elementsMeta.entries()) {
-    if (meta.isStarter) starters.add(name);
-  }
-  if (!starters.size) {
-    throw new Error("No starter elements defined in seeds.json elements[].");
-  }
-  for (const name of starters) tiers.set(name, 0);
+  for (const starter of starters) tiers.set(starter, 0);
+
+  if (!recipes.length) return tiers;
 
   let changed = true;
+  let guard = 0;
+  const recipeList = recipes.map((entry) => ({ ...entry }));
+
   while (changed) {
     changed = false;
-    for (const { left, right, result } of pairs) {
-      const leftTier = tiers.get(left);
-      const rightTier = tiers.get(right);
+    guard += 1;
+    if (guard > recipeList.length * 8) break;
+
+    for (const recipe of recipeList) {
+      const leftTier = tiers.get(recipe.left);
+      const rightTier = tiers.get(recipe.right);
       if (leftTier === undefined || rightTier === undefined) continue;
       const candidate = Math.max(leftTier, rightTier) + 1;
-      if (!tiers.has(result) || candidate < tiers.get(result)) {
-        tiers.set(result, candidate);
+      const current = tiers.get(recipe.result);
+      if (current === undefined || candidate < current) {
+        tiers.set(recipe.result, candidate);
         changed = true;
       }
     }
   }
 
-  return { tiers, starters };
+  return tiers;
 }
 
-async function applyElementMetadata(idByName, elementsMeta, tiers) {
-  for (const [name, id] of idByName.entries()) {
-    const meta = elementsMeta.get(name) ?? {};
-    const computed = tiers.get(name);
-    const tierValue = computed !== undefined
-      ? Math.max(0, Math.round(computed))
-      : (typeof meta.tier === "number" ? Math.max(0, Math.round(meta.tier)) : null);
-    const isGoal = meta.isGoal !== undefined ? meta.isGoal : (tierValue !== null && tierValue >= 3);
+async function upsertWords(wordMeta, tiers) {
+  const idByName = new Map();
+  const missingEmoji = [];
 
-    await prisma.element.update({
-      where: { id },
-      data: {
-        tier: tierValue,
-        isStarter: !!meta.isStarter,
+  for (const [name, meta] of wordMeta.entries()) {
+    const tier = meta.tier !== undefined ? meta.tier : tiers.get(name);
+    const isStarter = !!meta.isStarter;
+    const defaultGoal = tier !== undefined && tier !== null ? tier >= 3 : false;
+    const isGoal = meta.isGoal !== undefined ? !!meta.isGoal : (defaultGoal && !isStarter);
+    const hasEmoji = meta.emoji && isEmojiLike(meta.emoji);
+
+    const record = await prisma.word.upsert({
+      where: { name },
+      update: {
+        ...(hasEmoji ? { emoji: meta.emoji.trim() } : {}),
+        category: meta.category ?? null,
+        tier: tier ?? null,
+        isStarter,
+        isGoal,
+      },
+      create: {
+        name,
+        emoji: hasEmoji ? meta.emoji.trim() : FALLBACK_EMOJI,
+        category: meta.category ?? null,
+        tier: tier ?? null,
+        isStarter,
         isGoal,
       },
     });
 
-    meta.tier = tierValue;
-    meta.isGoal = isGoal;
-    elementsMeta.set(name, meta);
+    if (!hasEmoji && (!record.emoji || record.emoji === FALLBACK_EMOJI)) {
+      missingEmoji.push(name);
+    }
+
+    idByName.set(name, record.id);
   }
+
+  return { idByName, missingEmoji };
+}
+
+async function upsertRecipes(recipeMap, idByName) {
+  let created = 0;
+  let updated = 0;
+  const issues = [];
+
+  for (const recipe of recipeMap.values()) {
+    const leftId = idByName.get(recipe.left);
+    const rightId = idByName.get(recipe.right);
+    const resultId = idByName.get(recipe.result);
+    if (!leftId || !rightId || !resultId) {
+      issues.push(`${recipe.left} + ${recipe.right} -> ${recipe.result}`);
+      continue;
+    }
+
+    const data = {
+      category: recipe.category ?? null,
+      source: recipe.source ?? (recipe.isDefault ? "CANON" : "MANUAL"),
+      isDefault: !!recipe.isDefault,
+    };
+
+    const record = await prisma.recipeEdge.upsert({
+      where: {
+        leftId_rightId_resultId: {
+          leftId,
+          rightId,
+          resultId,
+        },
+      },
+      update: data,
+      create: {
+        leftId,
+        rightId,
+        resultId,
+        ...data,
+      },
+    });
+
+    if (record.createdAt.getTime() === record.updatedAt.getTime()) {
+      created += 1;
+    } else {
+      updated += 1;
+    }
+  }
+
+  return { created, updated, issues };
 }
 
 async function main() {
-  const { pairs, elementsMeta } = await loadSeeds();
-  if (!pairs.length) {
-    console.warn("No seed pairs found; skipping seed process");
-    return;
+  const [defaultGraph, manualGraph] = await Promise.all([
+    loadGraph(DEFAULT_GRAPH_PATH, { isDefault: true, source: "CANON", origin: "default" }),
+    loadGraph(MANUAL_GRAPH_PATH, { isDefault: false, source: "MANUAL", origin: "manual" }),
+  ]);
+
+  const { wordMeta, recipeMap } = mergeGraphDocs([defaultGraph, manualGraph]);
+
+  const starters = Array.from(wordMeta.entries())
+    .filter(([, meta]) => meta.isStarter)
+    .map(([name]) => name);
+
+  if (!starters.length) {
+    throw new Error("At least one starter word must be defined in the graph data.");
   }
 
-  const { idByName, missingEmoji } = await upsertElements(pairs, elementsMeta);
-  await upsertRecipes(pairs, idByName);
-
-  const { tiers, starters } = computeTiers(pairs, elementsMeta);
-  await applyElementMetadata(idByName, elementsMeta, tiers);
-
-  if (missingEmoji.length) {
-    console.warn(
-      `Assigned fallback ?? emoji to ${missingEmoji.length} elements: ${missingEmoji.slice(0, 20).join(", ")}${missingEmoji.length > 20 ? ", ..." : ""}`
-    );
-  }
-
-  if (targetPathIssues.length) {
-    const preview = targetPathIssues.slice(0, 5)
-      .map(({ target, step }) => `${target}: ${step.left} + ${step.right} -> ${step.result}`)
-      .join("; ");
-    const suffix = targetPathIssues.length > 5 ? "; ..." : "";
-    const detail = preview ? ` (examples: ${preview}${suffix})` : "";
-    console.warn(`Target database references ${targetPathIssues.length} recipe steps missing from seeds.json${detail}`);
-  }
+  const tiers = computeTiers(Array.from(recipeMap.values()), starters);
+  const { idByName, missingEmoji } = await upsertWords(wordMeta, tiers);
+  const { created, updated, issues } = await upsertRecipes(recipeMap, idByName);
 
   const reachableCount = tiers.size;
-  const totalElements = idByName.size;
+  const totalWords = idByName.size;
+  const totalRecipes = recipeMap.size;
+
+  if (missingEmoji.length) {
+    const preview = missingEmoji.slice(0, 10).join(", ");
+    const suffix = missingEmoji.length > 10 ? ", ..." : "";
+    console.warn(`Assigned fallback emoji to ${missingEmoji.length} words: ${preview}${suffix}`);
+  }
+
+  if (issues.length) {
+    const sample = issues.slice(0, 5).join("; ");
+    const suffix = issues.length > 5 ? "; ..." : "";
+    console.warn(`Skipped ${issues.length} recipes due to missing words: ${sample}${suffix}`);
+  }
+
   console.log(
-    `Seeded ${pairs.length} canonical recipes spanning ${totalElements} elements (starters: ${starters.size}, reachable (including starters): ${reachableCount}).`
+    `Seeded word graph with ${totalWords} words, ${totalRecipes} recipes (created ${created}, updated ${updated}), reachable words: ${reachableCount}.`
   );
 }
 
@@ -313,6 +305,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
-
-
