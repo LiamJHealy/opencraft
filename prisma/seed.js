@@ -1,8 +1,9 @@
-﻿// prisma/seed.js
+// prisma/seed.js
 
 const path = require("path");
 const fs = require("fs/promises");
 const { PrismaClient } = require("@prisma/client");
+const targetDb = require("../src/data/targetDatabase.json");
 
 const prisma = new PrismaClient();
 
@@ -18,6 +19,55 @@ function isEmojiLike(value) {
   const trimmed = value.trim();
   if (!trimmed || /[A-Za-z0-9]/.test(trimmed) || trimmed.length > 10) return false;
   return /\p{Extended_Pictographic}/u.test(trimmed);
+}
+
+let targetPathIssues = [];
+
+function recipeKey(left, right, result) {
+  const L = normalizeName(left);
+  const R = normalizeName(right);
+  const target = normalizeName(result);
+  if (!L || !R || !target) return null;
+  const a = L <= R ? L : R;
+  const b = L <= R ? R : L;
+  return `${a}::${b}::${target}`;
+}
+
+function collectMissingTargetSteps(pairs) {
+  const existing = new Set();
+  for (const pair of pairs) {
+    const key = recipeKey(pair.left, pair.right, pair.result);
+    if (key) existing.add(key);
+  }
+
+  const missing = new Map();
+  const entries = Array.isArray(targetDb.targets) ? targetDb.targets : [];
+  for (const entry of entries) {
+    const targetName = normalizeName(entry?.name);
+    if (!targetName) continue;
+    const paths = Array.isArray(entry?.paths) ? entry.paths : [];
+    paths.forEach((path, pathIndex) => {
+      const label = typeof path?.label === "string" && path.label.trim()
+        ? path.label.trim()
+        : `path-${pathIndex + 1}`;
+      const steps = Array.isArray(path?.steps) ? path.steps : [];
+      for (const step of steps) {
+        const key = recipeKey(step?.left, step?.right, step?.result);
+        if (!key || existing.has(key) || missing.has(key)) continue;
+        missing.set(key, {
+          target: targetName,
+          label,
+          step: {
+            left: normalizeName(step.left),
+            right: normalizeName(step.right),
+            result: normalizeName(step.result),
+          },
+        });
+      }
+    });
+  }
+
+  return Array.from(missing.values());
 }
 
 async function loadSeeds() {
@@ -73,6 +123,8 @@ async function loadSeeds() {
     elementsMeta.set(name, meta);
   }
 
+  targetPathIssues = collectMissingTargetSteps(pairs);
+
   return { pairs, elementsMeta };
 }
 
@@ -103,8 +155,8 @@ async function upsertElements(pairs, elementsMeta) {
     }
 
     const existing = await prisma.element.findUnique({ where: { name } });
-    const createEmoji = emoji ?? "🧩";
-    const updateEmoji = emoji ? emoji : (!existing?.emoji ? "🧩" : undefined);
+    const createEmoji = emoji ?? "??";
+    const updateEmoji = emoji ? emoji : (!existing?.emoji ? "??" : undefined);
     if (!emoji) missingEmoji.push(name);
 
     const createData = {
@@ -233,8 +285,17 @@ async function main() {
 
   if (missingEmoji.length) {
     console.warn(
-      `Assigned fallback 🧩 emoji to ${missingEmoji.length} elements: ${missingEmoji.slice(0, 20).join(", ")}${missingEmoji.length > 20 ? ", ..." : ""}`
+      `Assigned fallback ?? emoji to ${missingEmoji.length} elements: ${missingEmoji.slice(0, 20).join(", ")}${missingEmoji.length > 20 ? ", ..." : ""}`
     );
+  }
+
+  if (targetPathIssues.length) {
+    const preview = targetPathIssues.slice(0, 5)
+      .map(({ target, step }) => `${target}: ${step.left} + ${step.right} -> ${step.result}`)
+      .join("; ");
+    const suffix = targetPathIssues.length > 5 ? "; ..." : "";
+    const detail = preview ? ` (examples: ${preview}${suffix})` : "";
+    console.warn(`Target database references ${targetPathIssues.length} recipe steps missing from seeds.json${detail}`);
   }
 
   const reachableCount = tiers.size;

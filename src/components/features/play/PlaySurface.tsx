@@ -226,6 +226,11 @@ export default function PlaySurface() {
   );
   const elementSet = useMemo(() => new Set(catalogElements.map((e) => e.name)), [catalogElements]);
 
+  const allTargetsComplete = useMemo(() => {
+    if (!daily?.targets?.length) return false;
+    return daily.targets.every((target) => completedTargets.has(target.name));
+  }, [daily, completedTargets]);
+
   const catalogContainerClasses = cn(
     "pointer-events-auto absolute z-20 w-[min(360px,calc(100%-4rem))] max-h-[70vh] overflow-y-auto rounded-3xl border p-6 shadow-2xl backdrop-blur transition-colors duration-300",
     isDark
@@ -652,6 +657,11 @@ export default function PlaySurface() {
                     />
                   ))}
                 </div>
+                {allTargetsComplete && (
+                  <div className="mt-3 rounded-3xl border border-emerald-200/60 bg-emerald-50/80 px-4 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-emerald-700">
+                    Daily goals complete! Check back tomorrow for fresh words.
+                  </div>
+                )}
               </div>
             ) : (
               <p className={catalogEmptyTextClasses}>No targets available.</p>

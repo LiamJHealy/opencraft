@@ -1,4 +1,4 @@
-﻿import { listTargets } from "@/lib/seeds";
+import { listTargets } from "@/lib/seeds";
 import { normalizeName } from "@/lib/normalize";
 import { prisma } from "@/lib/prisma";
 
@@ -7,7 +7,7 @@ type ParentMap = Map<string, { left: string; right: string }>;
 
 type DepthMap = Map<string, number>;
 
-const FALLBACK_EMOJI = "🧩";
+const FALLBACK_EMOJI = "??";
 const STARTER_NAMES = ["fire", "water", "earth", "air"] as const;
 const DIFFICULTY_PLAN = [
   { level: "easy" as const, min: 3, max: 3 },
@@ -101,6 +101,7 @@ export type DailyTarget = {
   steps: number;
   path: RecipeEdge[];
   recipes: Array<{ left: string; right: string }>;
+  pathOptions: Array<{ label: string; steps: RecipeEdge[] }>;
   requiredStarters: string[];
 };
 
@@ -149,8 +150,16 @@ export async function generateDailySet(seedInput?: string): Promise<DailyPayload
   const starterNames = starters.map((s) => s.name);
   const { depths, parent } = computeDepths(starterNames, recipes);
 
-  const targets = listTargets();
-  const shuffledTargets = [...targets];
+  const availableTargets = listTargets().filter(
+    (target) =>
+      target.recipes.length >= 2 &&
+      target.paths.some((path) => path.steps.length >= 3),
+  );
+  if (!availableTargets.length) {
+    throw new Error("No targets with sufficient multi-link coverage available.");
+  }
+
+  const shuffledTargets = [...availableTargets];
   shuffleInPlace(shuffledTargets, rng);
 
   const chosenTargets: DailyTarget[] = [];
@@ -162,7 +171,8 @@ export async function generateDailySet(seedInput?: string): Promise<DailyPayload
       if (usedNames.has(t.name)) return false;
       const depth = depths.get(t.name);
       if (depth === undefined) return false;
-      return depth >= plan.min && depth <= plan.max;
+      if (depth < plan.min || depth > plan.max) return false;
+      return true;
     });
 
     if (!candidate) {
@@ -170,6 +180,10 @@ export async function generateDailySet(seedInput?: string): Promise<DailyPayload
     }
 
     const depth = depths.get(candidate.name)!;
+    if (depth < 3) {
+      throw new Error(`Target '${candidate.name}' is too close to starters (depth ${depth}).`);
+    }
+
     const path = buildPath(candidate.name, parent);
     if (!path.length) {
       throw new Error(`No recipe path found for target '${candidate.name}'.`);
@@ -193,6 +207,27 @@ export async function generateDailySet(seedInput?: string): Promise<DailyPayload
       }
     }
 
+    const recipeSet = new Map<string, { left: string; right: string }>();
+    for (const recipe of candidate.recipes) {
+      const left = normalizeName(recipe.left);
+      const right = normalizeName(recipe.right);
+      if (!left || !right) continue;
+      const key = left <= right ? `${left}::${right}` : `${right}::${left}`;
+      if (!recipeSet.has(key)) {
+        recipeSet.set(key, { left, right });
+      }
+    }
+    const recipeOptions = Array.from(recipeSet.values());
+
+    const pathOptions = candidate.paths.map((pathDef) => ({
+      label: pathDef.label,
+      steps: pathDef.steps.map((step) => ({
+        left: step.left,
+        right: step.right,
+        result: step.result,
+      })),
+    }));
+
     chosenTargets.push({
       difficulty: plan.level,
       name: candidate.name,
@@ -200,7 +235,8 @@ export async function generateDailySet(seedInput?: string): Promise<DailyPayload
       emoji: ensureEmoji(info.emoji),
       steps: depth,
       path,
-      recipes: candidate.recipes,
+      recipes: recipeOptions,
+      pathOptions,
       requiredStarters: orderedStarterUse,
     });
     usedNames.add(candidate.name);
