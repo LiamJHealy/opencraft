@@ -1,6 +1,7 @@
 import { listTargets } from "@/lib/seeds";
 import { normalizeName } from "@/lib/normalize";
 import { prisma } from "@/lib/prisma";
+import starterPoolRaw from "@/data/starterWords.json";
 
 type RecipeEdge = { left: string; right: string; result: string };
 type ParentMap = Map<string, { left: string; right: string }>;
@@ -8,12 +9,40 @@ type ParentMap = Map<string, { left: string; right: string }>;
 type DepthMap = Map<string, number>;
 
 const FALLBACK_EMOJI = "??";
-const STARTER_NAMES = ["fire", "water", "earth", "air"] as const;
-const DIFFICULTY_PLAN = [
-  { level: "easy" as const, min: 3, max: 3 },
-  { level: "medium" as const, min: 5, max: 5 },
-  { level: "hard" as const, min: 6, max: Number.POSITIVE_INFINITY },
-];
+
+const FALLBACK_STARTERS = ["fire", "water", "earth", "air"] as const;
+const STARTER_COUNT = 4;
+const MIN_TARGET_DEPTH = 3;
+const MAX_STARTER_ATTEMPTS = 128;
+
+type StarterWordEntry = string | { name?: string };
+
+type StarterDoc = {
+  starters?: StarterWordEntry[];
+};
+
+const STARTER_POOL = (() => {
+  const doc = (starterPoolRaw ?? {}) as StarterDoc;
+  const seen = new Set<string>();
+  const names: string[] = [];
+  for (const entry of doc.starters ?? []) {
+    const value =
+      typeof entry === "string"
+        ? normalizeName(entry)
+        : normalizeName(entry?.name ?? "");
+    if (!value || seen.has(value)) continue;
+    seen.add(value);
+    names.push(value);
+  }
+  for (const fallback of FALLBACK_STARTERS) {
+    if (names.length >= STARTER_COUNT) break;
+    const normalized = normalizeName(fallback);
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    names.push(normalized);
+  }
+  return names;
+})();
 
 function xmur3(str: string) {
   let h = 1779033703 ^ str.length;
@@ -94,7 +123,6 @@ function ensureEmoji(value?: string | null) {
 }
 
 export type DailyTarget = {
-  difficulty: "easy" | "medium" | "hard";
   name: string;
   elementId: number;
   emoji: string;
@@ -125,14 +153,6 @@ export async function generateDailySet(seedInput?: string): Promise<DailyPayload
     elements.map((el) => [normalizeName(el.name), { ...el, name: normalizeName(el.name) }]),
   );
 
-  const starters = STARTER_NAMES.map((name) => {
-    const info = elementByName.get(name);
-    if (!info) {
-      throw new Error(`Missing starter element '${name}' in database.`);
-    }
-    return info;
-  });
-
   const recipesRows = await prisma.recipe.findMany({
     where: { source: { in: ["CANON", "MANUAL"] } },
     select: {
@@ -147,9 +167,6 @@ export async function generateDailySet(seedInput?: string): Promise<DailyPayload
     result: normalizeName(row.result.name),
   }));
 
-  const starterNames = starters.map((s) => s.name);
-  const { depths, parent } = computeDepths(starterNames, recipes);
-
   const availableTargets = listTargets().filter(
     (target) =>
       target.recipes.length >= 2 &&
@@ -159,40 +176,49 @@ export async function generateDailySet(seedInput?: string): Promise<DailyPayload
     throw new Error("No targets with sufficient multi-link coverage available.");
   }
 
-  const shuffledTargets = [...availableTargets];
-  shuffleInPlace(shuffledTargets, rng);
+  const starterPool = STARTER_POOL.length
+    ? STARTER_POOL
+    : Array.from(FALLBACK_STARTERS, (name) => normalizeName(name));
+  if (starterPool.length < STARTER_COUNT) {
+    throw new Error("Not enough starter words available to build a daily set.");
+  }
 
-  const chosenTargets: DailyTarget[] = [];
-  const usedNames = new Set<string>();
+  const pickStarterSet = () => {
+    const poolCopy = [...starterPool];
+    shuffleInPlace(poolCopy, rng);
+    return poolCopy.slice(0, STARTER_COUNT);
+  };
 
-  for (const plan of DIFFICULTY_PLAN) {
-    const candidate = shuffledTargets.find((t) => {
-      if (t.difficulty !== plan.level) return false;
-      if (usedNames.has(t.name)) return false;
+  const buildDailyFromStarters = (starterNames: string[]) => {
+    const normalized = starterNames.map((name) => normalizeName(name)).filter(Boolean);
+    const uniqueNames = Array.from(new Set(normalized));
+    if (uniqueNames.length < STARTER_COUNT) return null;
+
+    const startersInfo: Array<{ id: number; name: string; emoji: string | null; tier: number | null }> = [];
+    for (const name of uniqueNames) {
+      const info = elementByName.get(name);
+      if (!info) return null;
+      startersInfo.push(info);
+    }
+
+    const { depths, parent } = computeDepths(uniqueNames, recipes);
+
+    const targetPool = [...availableTargets];
+    shuffleInPlace(targetPool, rng);
+
+    const candidate = targetPool.find((t) => {
       const depth = depths.get(t.name);
-      if (depth === undefined) return false;
-      if (depth < plan.min || depth > plan.max) return false;
-      return true;
+      return depth !== undefined && depth >= MIN_TARGET_DEPTH;
     });
 
-    if (!candidate) {
-      throw new Error(`No candidate target found for difficulty '${plan.level}'.`);
-    }
+    if (!candidate) return null;
 
     const depth = depths.get(candidate.name)!;
-    if (depth < 3) {
-      throw new Error(`Target '${candidate.name}' is too close to starters (depth ${depth}).`);
-    }
-
     const path = buildPath(candidate.name, parent);
-    if (!path.length) {
-      throw new Error(`No recipe path found for target '${candidate.name}'.`);
-    }
+    if (!path.length) return null;
 
     const info = elementByName.get(candidate.name);
-    if (!info) {
-      throw new Error(`Missing element metadata for target '${candidate.name}'.`);
-    }
+    if (!info) return null;
 
     const starterUse = new Set<string>();
     const orderedStarterUse: string[] = [];
@@ -228,8 +254,7 @@ export async function generateDailySet(seedInput?: string): Promise<DailyPayload
       })),
     }));
 
-    chosenTargets.push({
-      difficulty: plan.level,
+    const target: DailyTarget = {
       name: candidate.name,
       elementId: info.id,
       emoji: ensureEmoji(info.emoji),
@@ -238,9 +263,33 @@ export async function generateDailySet(seedInput?: string): Promise<DailyPayload
       recipes: recipeOptions,
       pathOptions,
       requiredStarters: orderedStarterUse,
-    });
-    usedNames.add(candidate.name);
+    };
+
+    return { starters: startersInfo, target, depths };
+  };
+
+  let attemptResult: ReturnType<typeof buildDailyFromStarters> | null = null;
+  const attemptLimit = Math.max(MAX_STARTER_ATTEMPTS, starterPool.length * 2);
+
+  for (let i = 0; i < attemptLimit; i += 1) {
+    const starterNames = pickStarterSet();
+    const result = buildDailyFromStarters(starterNames);
+    if (result) {
+      attemptResult = result;
+      break;
+    }
   }
+
+  if (!attemptResult) {
+    const fallbackNames = Array.from(FALLBACK_STARTERS, (name) => normalizeName(name));
+    attemptResult = buildDailyFromStarters(fallbackNames);
+  }
+
+  if (!attemptResult) {
+    throw new Error("Unable to generate daily target with available starters.");
+  }
+
+  const { starters, target, depths } = attemptResult;
 
   const startersPayload = starters.map((info) => ({
     id: info.id,
@@ -253,7 +302,8 @@ export async function generateDailySet(seedInput?: string): Promise<DailyPayload
     seed: canonicalSeed,
     starters: startersPayload,
     starterCount: startersPayload.length,
-    targets: chosenTargets,
+    targets: [target],
     reachableCount: depths.size,
   };
 }
+

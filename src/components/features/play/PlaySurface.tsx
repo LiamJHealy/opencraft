@@ -649,7 +649,6 @@ export default function PlaySurface() {
                       key={`target-${target.elementId}`}
                       name={target.name}
                       emoji={target.emoji ?? emojiFor(target.name)}
-                      difficulty={target.difficulty}
                       steps={target.steps}
                       recipes={target.recipes}
                       requiredStarters={target.requiredStarters}

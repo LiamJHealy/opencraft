@@ -1055,7 +1055,6 @@
     {
       "name": "pottery",
       "emoji": "🏺",
-      "difficulty": "easy",
       "recipes": [
         [
           "clay",
@@ -1070,7 +1069,6 @@
     {
       "name": "campfire",
       "emoji": "🏕️",
-      "difficulty": "easy",
       "recipes": [
         [
           "ember",
@@ -1089,7 +1087,6 @@
     {
       "name": "windmill",
       "emoji": "🌾",
-      "difficulty": "easy",
       "recipes": [
         [
           "wind",
@@ -1104,7 +1101,6 @@
     {
       "name": "greenhouse",
       "emoji": "🏡",
-      "difficulty": "medium",
       "recipes": [
         [
           "garden",
@@ -1119,7 +1115,6 @@
     {
       "name": "compass",
       "emoji": "🧭",
-      "difficulty": "medium",
       "recipes": [
         [
           "lodestone",
@@ -1134,7 +1129,6 @@
     {
       "name": "observatory",
       "emoji": "🔭",
-      "difficulty": "medium",
       "recipes": [
         [
           "lens",
@@ -1149,7 +1143,6 @@
     {
       "name": "ecosystem",
       "emoji": "🌍",
-      "difficulty": "hard",
       "recipes": [
         [
           "forest",
@@ -1164,7 +1157,6 @@
     {
       "name": "robotics",
       "emoji": "🤖",
-      "difficulty": "hard",
       "recipes": [
         [
           "machine",
@@ -1179,7 +1171,6 @@
     {
       "name": "satellite",
       "emoji": "🛰️",
-      "difficulty": "hard",
       "recipes": [
         [
           "rocket",
@@ -1194,7 +1185,6 @@
     {
       "name": "symphony",
       "emoji": "🎼",
-      "difficulty": "hard",
       "recipes": [
         [
           "orchestra",
