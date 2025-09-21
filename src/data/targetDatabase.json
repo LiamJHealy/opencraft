@@ -60,6 +60,28 @@
             }
           ]
         }
+      ],
+      "starterSets": [
+        {
+          "label": "clay-fire starters",
+          "starters": [
+            "fire",
+            "air",
+            "water",
+            "earth"
+          ],
+          "path": "clay-fire"
+        },
+        {
+          "label": "clay-kiln starters",
+          "starters": [
+            "air",
+            "fire",
+            "water",
+            "earth"
+          ],
+          "path": "clay-kiln"
+        }
       ]
     },
     {
@@ -141,6 +163,38 @@
             }
           ]
         }
+      ],
+      "starterSets": [
+        {
+          "label": "ember-air starters",
+          "starters": [
+            "air",
+            "fire",
+            "water",
+            "earth"
+          ],
+          "path": "ember-air"
+        },
+        {
+          "label": "tree-fire starters",
+          "starters": [
+            "fire",
+            "water",
+            "earth",
+            "air"
+          ],
+          "path": "tree-fire"
+        },
+        {
+          "label": "wood-fire starters",
+          "starters": [
+            "fire",
+            "air",
+            "water",
+            "earth"
+          ],
+          "path": "wood-fire"
+        }
       ]
     },
     {
@@ -206,6 +260,27 @@
               "right": "air"
             }
           ]
+        }
+      ],
+      "starterSets": [
+        {
+          "label": "wind-earth starters",
+          "starters": [
+            "earth",
+            "air",
+            "fire"
+          ],
+          "path": "wind-earth"
+        },
+        {
+          "label": "wind-wood starters",
+          "starters": [
+            "air",
+            "fire",
+            "water",
+            "earth"
+          ],
+          "path": "wind-wood"
         }
       ]
     },
@@ -313,6 +388,18 @@
             }
           ]
         }
+      ],
+      "starterSets": [
+        {
+          "label": "garden-glass starters",
+          "starters": [
+            "water",
+            "earth",
+            "air",
+            "fire"
+          ],
+          "path": "garden-glass"
+        }
       ]
     },
     {
@@ -419,6 +506,28 @@
             }
           ]
         }
+      ],
+      "starterSets": [
+        {
+          "label": "lodestone-wood starters",
+          "starters": [
+            "sand",
+            "air",
+            "fire",
+            "earth",
+            "water"
+          ],
+          "path": "lodestone-wood"
+        },
+        {
+          "label": "lodestone-glass starters",
+          "starters": [
+            "air",
+            "fire",
+            "earth"
+          ],
+          "path": "lodestone-glass"
+        }
       ]
     },
     {
@@ -524,6 +633,18 @@
               "right": "water"
             }
           ]
+        }
+      ],
+      "starterSets": [
+        {
+          "label": "lens-tower starters",
+          "starters": [
+            "fire",
+            "earth",
+            "air",
+            "water"
+          ],
+          "path": "lens-tower"
         }
       ]
     },
@@ -635,6 +756,18 @@
               "right": "air"
             }
           ]
+        }
+      ],
+      "starterSets": [
+        {
+          "label": "forest-animals starters",
+          "starters": [
+            "water",
+            "earth",
+            "air",
+            "fire"
+          ],
+          "path": "forest-animals"
         }
       ]
     },
@@ -761,6 +894,18 @@
               "right": "air"
             }
           ]
+        }
+      ],
+      "starterSets": [
+        {
+          "label": "machine-intelligence starters",
+          "starters": [
+            "air",
+            "fire",
+            "earth",
+            "water"
+          ],
+          "path": "machine-intelligence"
         }
       ]
     },
@@ -917,6 +1062,27 @@
               "right": "earth"
             }
           ]
+        }
+      ],
+      "starterSets": [
+        {
+          "label": "rocket-orbit starters",
+          "starters": [
+            "fire",
+            "air",
+            "earth",
+            "water"
+          ],
+          "path": "rocket-orbit"
+        },
+        {
+          "label": "rocket-signal starters",
+          "starters": [
+            "fire",
+            "air",
+            "earth"
+          ],
+          "path": "rocket-signal"
         }
       ]
     },
@@ -1093,6 +1259,18 @@
               "right": "air"
             }
           ]
+        }
+      ],
+      "starterSets": [
+        {
+          "label": "orchestra-time starters",
+          "starters": [
+            "air",
+            "fire",
+            "water",
+            "earth"
+          ],
+          "path": "orchestra-time"
         }
       ]
     }

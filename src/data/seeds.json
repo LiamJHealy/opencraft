@@ -201,7 +201,7 @@
       "left": "sprout",
       "right": "earth",
       "result": "plant",
-      "emoji": "🪴",
+      "emoji": "🌳",
       "tags": [
         "nature"
       ]
@@ -219,7 +219,7 @@
       "left": "sprout",
       "right": "mist",
       "result": "plant",
-      "emoji": "🪴",
+      "emoji": "🌳",
       "tags": [
         "nature"
       ]
@@ -237,7 +237,7 @@
       "left": "sand",
       "right": "fire",
       "result": "glass",
-      "emoji": "🪟",
+      "emoji": "🥛",
       "tags": [
         "craft"
       ]
@@ -290,35 +290,6 @@
       ]
     },
     {
-      "left": "magnet",
-      "right": "sand",
-      "result": "lodestone",
-      "emoji": "🪨",
-      "tags": [
-        "industry"
-      ]
-    },
-    {
-      "left": "lodestone",
-      "right": "wood",
-      "result": "compass",
-      "emoji": "🧭",
-      "tags": [
-        "target",
-        "target:compass"
-      ]
-    },
-    {
-      "left": "lodestone",
-      "right": "glass",
-      "result": "compass",
-      "emoji": "🧭",
-      "tags": [
-        "target",
-        "target:compass"
-      ]
-    },
-    {
       "left": "brick",
       "right": "brick",
       "result": "tower",
@@ -340,7 +311,7 @@
       "left": "lava",
       "right": "water",
       "result": "stone",
-      "emoji": "🪨",
+      "emoji": "🗿",
       "tags": [
         "nature"
       ]
@@ -782,7 +753,7 @@
     },
     {
       "name": "glass",
-      "emoji": "🪟",
+      "emoji": "🥛",
       "starter": false,
       "goal": false
     },
@@ -829,12 +800,6 @@
       "goal": false
     },
     {
-      "name": "lodestone",
-      "emoji": "🪨",
-      "starter": false,
-      "goal": false
-    },
-    {
       "name": "machine",
       "emoji": "⚙️",
       "starter": false,
@@ -860,7 +825,7 @@
     },
     {
       "name": "mud",
-      "emoji": "🪣",
+      "emoji": "🤎",
       "starter": false,
       "goal": false
     },
@@ -890,7 +855,7 @@
     },
     {
       "name": "plant",
-      "emoji": "🪴",
+      "emoji": "🌳",
       "starter": false,
       "goal": false
     },
@@ -968,7 +933,7 @@
     },
     {
       "name": "stone",
-      "emoji": "🪨",
+      "emoji": "🗿",
       "starter": false,
       "goal": false
     },
@@ -1046,7 +1011,7 @@
     },
     {
       "name": "wood",
-      "emoji": "🪵",
+      "emoji": "🪓",
       "starter": false,
       "goal": false
     }
