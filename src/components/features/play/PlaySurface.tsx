@@ -1,4 +1,4 @@
-﻿// src/components/features/play/PlaySurface.tsx
+// src/components/features/play/PlaySurface.tsx
 
 "use client";
 
@@ -15,7 +15,32 @@ import type { DailyPayload } from "@/lib/daily";
 
 type ElementRow = { id: number; name: string; emoji?: string };
 
-type CombineHint = { ids: string[]; fromCatalog?: boolean };
+type CombineHint = {
+  ids: string[];
+  fromCatalog?: boolean;
+  label: string;
+  position: { x: number; y: number };
+};
+
+type CelebrationState = {
+  id: string;
+  word: string;
+  emoji: string;
+  position: { x: number; y: number };
+  tagline: string;
+};
+
+const LOADING_EMOJIS = ["\u{1F300}", "\u{1F9E0}", "\u26A1", "\u2728", "\u{1F308}"];
+const CELEBRATION_TAGLINES = [
+  "Word fusion unlocked!",
+  "Combo discovered!",
+  "Fresh creation!",
+  "Brain spark!",
+  "New recipe unlocked!",
+];
+
+
+
 
 // helpers
 function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
@@ -35,6 +60,7 @@ export default function PlaySurface() {
   const [daily, setDaily] = useState<DailyPayload | null>(null);
   const [dailyLoading, setDailyLoading] = useState(true);
   const [dailyError, setDailyError] = useState<string | null>(null);
+  const [loadingEmojiIndex, setLoadingEmojiIndex] = useState(0);
   const [completedTargets, setCompletedTargets] = useState<Set<string>>(new Set());
 
   const starterElements = useMemo(() => {
@@ -63,6 +89,7 @@ export default function PlaySurface() {
   }, [daily]);
 
   const [discoveredElements, setDiscoveredElements] = useState<ElementRow[]>([]);
+  const [celebration, setCelebration] = useState<CelebrationState | null>(null);
 
   const { isDark } = useTheme();
 
@@ -126,6 +153,30 @@ export default function PlaySurface() {
 
   // when two tiles are within combine radius during drag
   const [combineHint, setCombineHint] = useState<CombineHint | null>(null);
+  const combineHintTimeoutRef = useRef<number | null>(null);
+
+  function showCombineHint(hint: CombineHint) {
+    if (combineHintTimeoutRef.current) {
+      window.clearTimeout(combineHintTimeoutRef.current);
+      combineHintTimeoutRef.current = null;
+    }
+    setCombineHint(hint);
+  }
+
+  function hideCombineHint(delay = 600) {
+    if (combineHintTimeoutRef.current) {
+      window.clearTimeout(combineHintTimeoutRef.current);
+      combineHintTimeoutRef.current = null;
+    }
+    if (delay <= 0) {
+      setCombineHint(null);
+      return;
+    }
+    combineHintTimeoutRef.current = window.setTimeout(() => {
+      setCombineHint(null);
+      combineHintTimeoutRef.current = null;
+    }, delay);
+  }
 
   // which tile is currently being dragged (for styling)
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -158,7 +209,7 @@ export default function PlaySurface() {
         setCompletedTargets(new Set());
         setTiles([]);
         setDiscoveredElements([]);
-        setCombineHint(null);
+        hideCombineHint(0);
         setDraggingId(null);
         setHexHighlight(null);
         setTrashHot(false);
@@ -180,7 +231,7 @@ export default function PlaySurface() {
     };
   }, [dailySeed]);
   useEffect(() => {
-    const full = "Drag words here...";
+    const full = "Drop words to craft combos ✨";
     let index = 0;
     let direction: 1 | -1 = 1;
     let timer = 0;
@@ -218,6 +269,29 @@ export default function PlaySurface() {
       window.clearTimeout(timer);
       window.clearInterval(blink);
     };
+  }, []);
+
+  useEffect(() => {
+    if (!dailyLoading) {
+      setLoadingEmojiIndex(0);
+      return;
+    }
+    const timer = window.setInterval(() => {
+      setLoadingEmojiIndex((index) => (index + 1) % LOADING_EMOJIS.length);
+    }, 420);
+    return () => window.clearInterval(timer);
+  }, [dailyLoading]);
+
+  useEffect(() => {
+    if (!celebration) return;
+    const timeout = window.setTimeout(() => setCelebration(null), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [celebration]);
+
+  useEffect(() => () => {
+    if (combineHintTimeoutRef.current) {
+      window.clearTimeout(combineHintTimeoutRef.current);
+    }
   }, []);
 
   const catalogElements = useMemo(
@@ -259,6 +333,15 @@ export default function PlaySurface() {
     "text-sm font-semibold",
     isDark ? "text-rose-300" : "text-rose-600"
   );
+  const loadingTextClasses = cn(
+    "flex items-center gap-2 text-sm font-semibold",
+    isDark ? "text-white/80" : "text-slate-600"
+  );
+  const loadingSubTextClasses = cn(
+    "text-[0.68rem] font-medium uppercase tracking-[0.2em]",
+    isDark ? "text-white/45" : "text-slate-500"
+  );
+  const loadingEmoji = LOADING_EMOJIS[loadingEmojiIndex];
   const primaryCatalogButtonClasses = cn(
     "rounded-full px-4 py-1.5 text-[0.6rem] font-semibold uppercase tracking-[0.3em] transition focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-60",
     isDark
@@ -319,12 +402,19 @@ export default function PlaySurface() {
 
   /** Replace a+b with a single "pending" tile immediately, then morph to result when done */
   async function combineTiles(a: CanvasTileData, b: CanvasTileData) {
-    // 1) Optimistic: remove a+b, add pending tile at midpoint
     const mid = midpoint({ x: a.x, y: a.y }, { x: b.x, y: b.y });
     const pendingId = uid();
+    const pendingTile: CanvasTileData = {
+      id: pendingId,
+      word: "brewing new word",
+      x: mid.x,
+      y: mid.y,
+      emoji: "\u{1FA84}",
+      pending: true,
+    };
     setTiles((prev) => [
       ...prev.filter((t) => t.id !== a.id && t.id !== b.id),
-      { id: pendingId, word: "Computingâ€¦", x: mid.x, y: mid.y, emoji: "âš™ï¸", pending: true },
+      pendingTile,
     ]);
 
     try {
@@ -336,11 +426,10 @@ export default function PlaySurface() {
       const data = await res.json();
 
       if (!res.ok || data?.error) {
-        // Show error state on the pending tile
         setTiles((prev) =>
           prev.map((t) =>
             t.id === pendingId
-              ? { ...t, word: "Error", emoji: "ðŸ›‘", pending: false }
+              ? { ...t, word: "try again", emoji: "\u{1F4A5}", pending: false }
               : t
           )
         );
@@ -349,9 +438,9 @@ export default function PlaySurface() {
       }
 
       const resultWord = normalizeName(String(data.result || "").trim());
-      const resultEmoji: string | undefined = data.resultEmoji || undefined;
+      const resultEmoji = data.resultEmoji ? String(data.resultEmoji) : emojiFor(resultWord);
+      const tagline = CELEBRATION_TAGLINES[Math.floor(Math.random() * CELEBRATION_TAGLINES.length)];
 
-      // 2) Morph the pending tile into the result
       setTiles((prev) =>
         prev.map((t) =>
           t.id === pendingId
@@ -361,18 +450,25 @@ export default function PlaySurface() {
       );
 
       addToSessionCatalog(resultWord, resultEmoji);
+      setCelebration({
+        id: pendingId,
+        word: properCase(resultWord),
+        emoji: resultEmoji,
+        position: mid,
+        tagline,
+      });
     } catch (err) {
-      // Network/unknown failure â†’ error state on pending tile
       setTiles((prev) =>
         prev.map((t) =>
-          t.id === pendingId ? { ...t, word: "Error", emoji: "ðŸ›‘", pending: false } : t
+          t.id === pendingId ? { ...t, word: "network glitch", emoji: "\u{1F4A5}", pending: false } : t
         )
       );
       console.error(err);
     }
   }
 
-  // Catalog â†’ Canvas drag handlers (still supports auto-combine on drop)
+
+  // Catalog → Canvas drag handlers (still supports auto-combine on drop)
   function onCanvasDragOver(e: React.DragEvent) {
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
@@ -383,16 +479,19 @@ export default function PlaySurface() {
 
     const { nearest, nearestD } = nearestToPoint(point);
     if (nearest && nearestD <= COMBINE_RADIUS) {
-      setCombineHint({ ids: [nearest.id], fromCatalog: true });
+      const position = midpoint(point, { x: nearest.x, y: nearest.y });
+      const label = "Drop to fuse! ⚡";
+
+      showCombineHint({ ids: [nearest.id], fromCatalog: true, label, position });
     } else {
-      setCombineHint(null);
+      hideCombineHint();
     }
   }
 
   async function onCanvasDrop(e: React.DragEvent) {
     e.preventDefault();
     setHexHighlight(null);
-    setCombineHint(null);
+    hideCombineHint(0);
 
     const wordRaw = e.dataTransfer.getData("text/plain");
     if (!wordRaw) return;
@@ -437,22 +536,18 @@ export default function PlaySurface() {
     );
 
     // trash hover + hex glow at the tile center
+    const center = { x: x + w / 2, y: y + h / 2 };
     setTrashHot(isOverTrash(x, y, w, h));
-    setHexHighlight({ x: x + w / 2, y: y + h / 2 });
+    setHexHighlight(center);
 
     // Compute nearest neighbor to this new position for the "in-range" cue
-    let nearest: CanvasTileData | null = null;
-    let nearestD = Infinity;
-    for (const t of tiles) {
-      if (t.id === id) continue;
-      const d = dist({ x, y }, { x: t.x, y: t.y });
-      if (d < nearestD) { nearestD = d; nearest = t; }
-    }
+    const { nearest, nearestD } = nearestToPoint(center, id);
 
     if (nearest && nearestD <= COMBINE_RADIUS) {
-      setCombineHint({ ids: [id, nearest.id] });
+      const hintPosition = midpoint({ x: nearest.x, y: nearest.y }, center);
+      showCombineHint({ ids: [id, nearest.id], fromCatalog: false, label: "Drop to fuse! ⚡", position: hintPosition });
     } else {
-      setCombineHint(null);
+      hideCombineHint();
     }
   }
 
@@ -463,7 +558,7 @@ export default function PlaySurface() {
     setHexHighlight(null);
 
     if (overTrash) {
-      setCombineHint(null);
+      hideCombineHint(0);
       setTiles((prev) => prev.filter((t) => t.id !== id));
       return;
     }
@@ -478,7 +573,7 @@ export default function PlaySurface() {
     }
 
     if (nearest && nearestD <= COMBINE_RADIUS) {
-      setCombineHint(null);
+      hideCombineHint(0);
       // Create a synthetic "moving" tile with the released coordinates
       const moving = tiles.find((t) => t.id === id);
       const a = nearest;
@@ -487,13 +582,13 @@ export default function PlaySurface() {
       return;
     }
 
-    setCombineHint(null);
+    hideCombineHint();
   }
 
   function removeTile(id: string) {
     setDraggingId(null);
     setTrashHot(false);
-    setCombineHint(null);
+    hideCombineHint(0);
     setTiles((prev) => prev.filter((t) => t.id !== id));
   }
 
@@ -509,7 +604,7 @@ export default function PlaySurface() {
         onDrop={onCanvasDrop}
         onDragLeave={() => {
           setHexHighlight(null);
-          setCombineHint(null);
+    hideCombineHint(0);
         }}
       >
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(30,64,175,0.15),_transparent_55%)]" />
@@ -532,7 +627,7 @@ export default function PlaySurface() {
               )}
             >
               <span className="oc-gradient-text text-xl font-semibold tracking-[0.2em]">
-                {promptText || "Â "}
+                {promptText || "Drop words to begin"}
               </span>
               <span
                 className={cn(
@@ -559,6 +654,53 @@ export default function PlaySurface() {
             onHoverEnd={() => setHexHighlight(null)}
           />
         ))}
+
+        {combineHint && (
+          <div
+            className="pointer-events-none absolute z-30 flex -translate-x-1/2 -translate-y-full flex-col items-center gap-1 oc-combine-pop"
+            style={{ left: combineHint.position.x, top: combineHint.position.y }}
+          >
+            <span
+              className={cn(
+                "rounded-full px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.25em] shadow-lg",
+                isDark ? "bg-amber-300/90 text-slate-900" : "bg-amber-400/90 text-slate-900"
+              )}
+            >
+              {combineHint.label}
+            </span>
+          </div>
+        )}
+
+        {celebration && (
+          <div
+            className={cn(
+              "pointer-events-none absolute z-40 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 text-center oc-celebration",
+              isDark ? "text-slate-100" : "text-slate-900"
+            )}
+            style={{ left: celebration.position.x, top: celebration.position.y }}
+            aria-live="polite"
+          >
+            <span className="text-4xl drop-shadow" aria-hidden>
+              {celebration.emoji}
+            </span>
+            <span
+              className={cn(
+                "rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.3em] shadow-lg",
+                isDark ? "bg-emerald-400/90 text-slate-900" : "bg-emerald-500/90 text-white"
+              )}
+            >
+              {celebration.tagline}
+            </span>
+            <span
+              className={cn(
+                "rounded-full px-3 py-1 text-[0.75rem] font-semibold shadow",
+                isDark ? "bg-slate-900/70 text-white" : "bg-white/90 text-slate-700"
+              )}
+            >
+              {celebration.word}
+            </span>
+          </div>
+        )}
 
         <div
           className={cn(
@@ -594,14 +736,17 @@ export default function PlaySurface() {
           onPointerCancel={endCatalogDrag}
           role="presentation"
         >
-          <span>Word catalog</span>
+          <span className="flex items-center gap-2">
+            Word catalog
+            <span aria-hidden className="oc-emoji-bounce text-lg">✨</span>
+          </span>
           <span
             className={cn(
-              "text-[1.3rem] font-medium tracking-[0.2em]",
+              "text-[0.7rem] font-semibold uppercase tracking-[0.35em]",
               isDark ? "text-white/40" : "text-slate-400"
             )}
           >
-            âœ¦âœ¦
+            Drag & drop to play
           </span>
         </div>
         <div className="space-y-4">
@@ -625,14 +770,30 @@ export default function PlaySurface() {
                   disabled={dailyLoading}
                   className={primaryCatalogButtonClasses}
                 >
-                  {dailyLoading ? "Loading…" : "Simulate new day"}
+                  {dailyLoading ? (
+                    <span className="flex items-center gap-2">
+                      <span className="oc-emoji-wiggle" aria-hidden>{loadingEmoji}</span>
+                      Loading
+                    </span>
+                  ) : (
+                    "Simulate new day"
+                  )}
                 </button>
               </div>
             </div>
             {dailyLoading ? (
-              <p className={catalogEmptyTextClasses}>Loading daily set.</p>
+              <div className={loadingTextClasses}>
+                <span className="oc-emoji-wiggle text-lg" aria-hidden>{loadingEmoji}</span>
+                <div className="flex flex-col leading-tight">
+                  <span>Brewing daily challenge...</span>
+                  <span className={loadingSubTextClasses}>Shuffling every syllable for you.</span>
+                </div>
+              </div>
             ) : dailyError ? (
-              <p className={catalogErrorTextClasses}>{dailyError}</p>
+              <p className={cn(catalogErrorTextClasses, "flex items-center gap-2")}>
+                <span aria-hidden>??</span>
+                {dailyError}
+              </p>
             ) : daily?.targets?.length ? (
               <div className="space-y-3">
                 <p className={catalogInfoTextClasses}>
@@ -670,7 +831,10 @@ export default function PlaySurface() {
           <section>
             <p className={catalogSectionLabelClasses}>Starting words</p>
             {dailyLoading ? (
-              <p className={catalogEmptyTextClasses}>Loading…</p>
+              <div className={loadingTextClasses}>
+                <span className="oc-emoji-wiggle text-lg" aria-hidden>{loadingEmoji}</span>
+                <span>Fetching starter words...</span>
+              </div>
             ) : starterElements.length > 0 ? (
               <div className="flex flex-wrap gap-2">
                 {starterElements.map((entry) => (
@@ -703,34 +867,3 @@ export default function PlaySurface() {
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -40,13 +40,13 @@ export function CatalogTile({ name, emoji }: { name: string; emoji?: string }) {
     <div
       draggable
       onDragStart={onDragStart}
-      className="inline-flex items-center whitespace-nowrap
-                 rounded-full border bg-white px-3 py-1.5
-                 text-base md:text-m text-zinc-900 shadow-sm hover:shadow-md
-                 transition-shadow cursor-grab active:cursor-grabbing select-none"
+      className="group inline-flex items-center whitespace-nowrap
+                 rounded-full border bg-white/95 px-3 py-1.5
+                 text-base md:text-m text-zinc-900 shadow-sm hover:shadow-lg
+                 transition-all duration-200 cursor-grab active:cursor-grabbing select-none hover:-translate-y-0.5"
       title={properCase(name)}
     >
-      <span aria-hidden className="mr-1">{displayEmoji}</span>
+      <span aria-hidden className="mr-1 inline-block transition-transform duration-200 group-hover:-translate-y-0.5">{displayEmoji}</span>
       <span className="font-medium">{properCase(name)}</span>
     </div>
   );

@@ -57,7 +57,7 @@ export function CanvasTile({
   }, []);
 
   const displayEmoji = tile.emoji ?? emojiFor(tile.word);
-  const displayText = properCase(tile.word);
+  const displayText = tile.pending ? tile.word : properCase(tile.word);
 
   // Hover -> let HexGrid know the center point for the glow
   function handleMouseEnter() {
@@ -107,16 +107,11 @@ export function CanvasTile({
       ref={elRef}
       className={cn(
         "absolute z-10 select-none cursor-grab active:cursor-grabbing",
-        // fully opaque, pill shape
-        "rounded-full border bg-white px-4 py-2",
-        // larger text
-        "text-base md:text-lg font-semibold text-zinc-900",
-        // visuals
-        "border-zinc-300 shadow-sm transition-transform transition-shadow duration-150 will-change-transform",
-        // combine-ready cue (no opacity animation)
+        "rounded-full border bg-white/95 px-4 py-2 text-base md:text-lg font-semibold text-slate-900",
+        "border-slate-200/70 shadow-sm transition-shadow duration-150 will-change-transform",
+        tile.pending && "oc-animate-pulse-soft border-amber-300 bg-amber-50/95 text-amber-900 shadow-lg",
         isHot && "scale-105 ring-2 ring-amber-400 shadow-md",
-        // keep crisp while dragging; ensure not faded on any platform
-        isDragging && "opacity-100"
+        isDragging ? "opacity-100" : "hover:shadow-lg"
       )}
       style={{ left: tile.x, top: tile.y }}
       title={displayText}
@@ -126,11 +121,11 @@ export function CanvasTile({
       onMouseLeave={handleMouseLeave}
       data-hot={isHot ? "true" : "false"}
       data-pending={tile.pending ? "true" : "false"}
+      aria-live={tile.pending ? "polite" : undefined}
     >
-      {/* Separate spans so we can spin the emoji while pending */}
       <span
         className={cn(
-          "mr-1 inline-block",
+          "mr-2 inline-block text-xl",
           tile.pending && "animate-spin"
         )}
         aria-hidden
