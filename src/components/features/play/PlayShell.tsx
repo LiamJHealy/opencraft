@@ -20,9 +20,9 @@ export default function PlayShell() {
   const profileRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
 
-  const themeEmoji = isDark ? "🌞" : "🌙";
+  const themeEmoji = isDark ? "\u{1F319}" : "\u{1F31E}";
   const themeToggleLabel = `Switch to ${isDark ? "day" : "night"} mode`;
-  const accountEmoji = user ? "😊" : "🔒";
+  const accountEmoji = user ? "\u{1F464}" : "\u2728";
   const accountButtonLabel = user ? "Open account menu" : "Open login menu";
   const aliasDisplay = user?.alias ?? user?.email ?? "Guest";
   const accountMenuHeading = user ? "Account" : "Guest access";
@@ -117,8 +117,14 @@ export default function PlayShell() {
 
   return (
     <main className={shellClasses}>
-      <div className="absolute inset-0 z-0">
-        <PlaySurface />
+      <div className="absolute inset-0 z-0 overflow-hidden">
+        <div
+          className={cx("pointer-events-none absolute inset-0 oc-aurora-layer", isDark ? "opacity-80" : "opacity-60")}
+          aria-hidden
+        />
+        <div className="relative z-10 h-full w-full">
+          <PlaySurface />
+        </div>
       </div>
 
       <div className="pointer-events-none absolute inset-0 z-30 flex flex-col">
@@ -137,6 +143,7 @@ export default function PlayShell() {
                 Daily Race
               </span>
               <span className="text-lg font-semibold">OpenCraft</span>
+              <span className={cx("text-xs font-medium text-slate-500", isDark ? "text-white/70" : "text-slate-500")}>Blend words. Unlock ideas.</span>
             </div>
           </div>
 
@@ -192,9 +199,7 @@ export default function PlayShell() {
                           router.push("/profile");
                         }}
                       >
-                        <span className="text-base" aria-hidden>
-                          🧭
-                        </span>
+                        <span className="text-base" aria-hidden>{"\u{1F9FE}"}</span>
                         Profile
                       </button>
                       <div className={cx("my-1 h-px", dividerClasses)} aria-hidden />
@@ -204,9 +209,7 @@ export default function PlayShell() {
                         role="menuitem"
                         onClick={handleLogout}
                       >
-                        <span className="text-base" aria-hidden>
-                          🚪
-                        </span>
+                        <span className="text-base" aria-hidden>{"\u{1F6AA}"}</span>
                         Log out
                       </button>
                     </>
@@ -217,9 +220,7 @@ export default function PlayShell() {
                       role="menuitem"
                       onClick={() => setProfileOpen(false)}
                     >
-                      <span className="text-base" aria-hidden>
-                        🔐
-                      </span>
+                      <span className="text-base" aria-hidden>{"\u{1F511}"}</span>
                       Log in
                     </Link>
                   )}
@@ -231,7 +232,7 @@ export default function PlayShell() {
 
         <div className={footerTextClasses}>
           <span />
-          <span>Imagine. Combine. Discover.</span>
+          <span>{"\u2728"} Imagine. Combine. Discover.</span>
         </div>
       </div>
     </main>
