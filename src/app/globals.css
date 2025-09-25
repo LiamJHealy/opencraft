@@ -189,3 +189,17 @@ body {
     animation-iteration-count: 1 !important;
   }
 }
+
+/* --- News Ticker animation --- */
+@keyframes oc-ticker {
+  0%   { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+/* Reduce motion: stop marquee */
+@media (prefers-reduced-motion: reduce) {
+  .oc-animate-ticker {
+    animation: none !important;
+    transform: translateX(0) !important;
+  }
+}

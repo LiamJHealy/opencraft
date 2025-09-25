@@ -14,6 +14,9 @@ import { TargetTile } from "@/components/features/play/TargetTile";
 import type { DailyPayload } from "@/lib/daily";
 import { createPortal } from "react-dom";
 
+import { NewsTicker } from "@/components/ui/NewsTicker";
+import { HoneypotButton } from "@/components/ui/HoneypotButton";
+
 type ElementRow = { id: number; name: string; emoji?: string };
 
 type CombineHint = {
@@ -304,169 +307,6 @@ export function CelebrationOverlay({
 
   return createPortal(body, document.body);
 }
-
-
-
-
-// function CelebrationOverlay({
-//   emoji, word, tagline, isDark, onClose,
-// }: {
-//   emoji: string;
-//   word: string;
-//   tagline: string;
-//   isDark: boolean;
-//   onClose: () => void;
-// }) {
-//   const [show, setShow] = useState(false);
-//   useEffect(() => {
-//   const raf = requestAnimationFrame(() => setShow(true));
-//     const t = setTimeout(onClose, 1800);
-//     return () => { cancelAnimationFrame(raf); clearTimeout(t); };
-// }, [onClose]);
-
-//   const body = (
-//     <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center">
-//       {/* subtle backdrop to lift the moment */}
-//       <div className="absolute inset-0 bg-black/20" />
-
-//       <div
-//         className={[
-//           "relative pointer-events-none flex flex-col items-center gap-3 text-center",
-//           "transition-all duration-300 will-change-transform",
-//           show ? "opacity-100 scale-100" : "opacity-0 scale-90",
-//           isDark ? "text-slate-100" : "text-slate-900",
-//         ].join(" ")}
-//         aria-live="polite"
-//       >
-//         <span className="text-7xl md:text-8xl drop-shadow" aria-hidden>
-//           {emoji}
-//         </span>
-
-//         <span
-//           className={[
-//             "rounded-full px-4 py-2 text-sm md:text-base font-extrabold uppercase tracking-[0.35em] shadow-xl",
-//             isDark ? "bg-emerald-400/95 text-slate-900" : "bg-emerald-500/95 text-white",
-//           ].join(" ")}
-//         >
-//           {tagline}
-//         </span>
-
-//         <span
-//           className={[
-//             "rounded-full px-5 py-2 text-xl md:text-2xl font-bold shadow-xl",
-//             isDark ? "bg-slate-900/80 text-white" : "bg-white/95 text-slate-800",
-//           ].join(" ")}
-//         >
-//           {word}
-//         </span>
-//       </div>
-//     </div>
-//   );
-
-//   return createPortal(body, document.body);
-// }
-
-// function RisingEmojiParticle({
-//   emoji,
-//   angleDeg,
-//   distance,
-//   duration = 1100,
-//   delay = 0,
-//   onDone,
-// }: {
-//   emoji: string;
-//   angleDeg: number;     // e.g. -60 .. -120 (mostly upward)
-//   distance: number;     // pixels  (e.g. 140..260)
-//   duration?: number;    // ms
-//   delay?: number;       // ms
-//   onDone?: () => void;
-// }) {
-//   const [mounted, setMounted] = useState(false);
-
-//   // convert polar to cartesian once
-//   const rad = (angleDeg * Math.PI) / 180;
-//   const dx = Math.cos(rad) * distance;
-//   const dy = Math.sin(rad) * distance; // negative for upward
-
-//   useEffect(() => {
-//     const mountTimer = setTimeout(() => setMounted(true), 10);
-//     const doneTimer = setTimeout(() => onDone?.(), delay + duration + 50);
-//     return () => {
-//       clearTimeout(mountTimer);
-//       clearTimeout(doneTimer);
-//     };
-//   }, [delay, duration, onDone]);
-
-//   return (
-//     <span
-//       aria-hidden
-//       className="absolute left-1/2 top-1/2 pointer-events-none select-none will-change-transform"
-//       style={{
-//         transform: mounted
-//           ? `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.9) rotate(${dx * 0.06}deg)`
-//           : "translate(-50%, -50%) scale(1)",
-//         opacity: mounted ? 0 : 1,
-//         transitionProperty: "transform, opacity",
-//         transitionDuration: `${duration}ms`,
-//         transitionTimingFunction: "cubic-bezier(0.2, 0.7, 0.2, 1)",
-//         transitionDelay: `${delay}ms`,
-//         fontSize: "clamp(24px, 5vw, 42px)",
-//         textShadow: "0 2px 8px rgba(0,0,0,0.25)",
-//       }}
-//     >
-//       {emoji}
-//     </span>
-//   );
-// }
-
-// function EmojiFlight({
-//   emoji,
-//   count = 7,
-//   spreadDeg = 70,     // width of the cone (centered on straight-up)
-//   minDist = 140,
-//   maxDist = 240,
-//   minDelay = 0,
-//   maxDelay = 150,
-//   duration = 1100,
-// }: {
-//   emoji: string;
-//   count?: number;
-//   spreadDeg?: number;
-//   minDist?: number;
-//   maxDist?: number;
-//   minDelay?: number;
-//   maxDelay?: number;
-//   duration?: number;
-// }) {
-//   // generate random particles once
-//   const parts = useMemo(() => {
-//     const out: { angleDeg: number; distance: number; delay: number }[] = [];
-//     for (let i = 0; i < count; i++) {
-//       // center the cone on -90deg (straight up), with random jitter
-//       const angleDeg =
-//         -90 + (Math.random() - 0.5) * spreadDeg; // e.g. -90 ± 35deg
-//       const distance = minDist + Math.random() * (maxDist - minDist);
-//       const delay = minDelay + Math.random() * (maxDelay - minDelay);
-//       out.push({ angleDeg, distance, delay });
-//     }
-//     return out;
-//   }, [count, spreadDeg, minDist, maxDist, minDelay, maxDelay]);
-
-//   return (
-//     <div className="fixed inset-0 z-[9999] pointer-events-none">
-//       {parts.map((p, i) => (
-//         <RisingEmojiParticle
-//           key={i}
-//           emoji={emoji}
-//           angleDeg={p.angleDeg}
-//           distance={p.distance}
-//           delay={p.delay}
-//           duration={duration}
-//         />
-//       ))}
-//     </div>
-//   );
-// }
 
 // helpers
 function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
@@ -1096,6 +936,15 @@ export default function PlaySurface() {
             </span>
           </div>
         )}
+
+        {/* Bottom news-like ticker */}
+        <NewsTicker isDark={isDark} speedSec={28} />
+
+        {/* Bottom-right honeypot icon */}
+        <HoneypotButton
+          isDark={isDark}
+          href="https://honeypot.io"  // TODO: replace with your link
+        />
 
         {/* {celebration && (
           <div
