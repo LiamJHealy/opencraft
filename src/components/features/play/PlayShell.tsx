@@ -230,10 +230,10 @@ export default function PlayShell() {
           </div>
         </header>
 
-        <div className={footerTextClasses}>
+        {/* <div className={footerTextClasses}>
           <span />
           <span>{"\u2728"} Imagine. Combine. Discover.</span>
-        </div>
+        </div> */}
       </div>
     </main>
   );
