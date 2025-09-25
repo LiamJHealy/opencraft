@@ -7,7 +7,7 @@ const unlockedStyles = "border-emerald-200 bg-emerald-50/90 text-emerald-900";
 
 const lockedStyles = "border-slate-200 bg-slate-100/90 text-slate-500";
 
-const targetLabel = "Daily target";
+const targetLabel = "Target";
 
 export type TargetTileProps = {
   name: string;
@@ -49,7 +49,7 @@ export function TargetTile({
 
   const statusBadge = completed ? (
     <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-      <span aria-hidden>?</span> Complete
+      <span aria-hidden>🎯</span> Complete
     </span>
   ) : (
     <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/70 px-2 py-0.5 text-xs font-semibold text-slate-500">

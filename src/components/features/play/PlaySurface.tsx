@@ -670,9 +670,21 @@ export default function PlaySurface() {
   async function combineTiles(a: CanvasTileData, b: CanvasTileData) {
     const mid = midpoint({ x: a.x, y: a.y }, { x: b.x, y: b.y });
     const pendingId = uid();
+
+    const LOADING_MESSAGES = [
+      "Brewing new word…",
+      "Fusing ideas…",
+      "The cauldron bubbles…",
+      "Stars are aligning…",
+      "Discovery loading…",
+      "Rolling word dice…",
+      "Mixing metaphors…"
+    ];
+
+    const message = LOADING_MESSAGES[Math.floor(Math.random() * LOADING_MESSAGES.length)];
     const pendingTile: CanvasTileData = {
       id: pendingId,
-      word: "brewing new word",
+      word: message,
       x: mid.x,
       y: mid.y,
       emoji: "⚙️",
@@ -875,14 +887,14 @@ export default function PlaySurface() {
       >
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(30,64,175,0.15),_transparent_55%)]" />
 
-        <HexGridCanvas
+        {/* <HexGridCanvas
           parentRef={canvasRef}
           highlight={hexHighlight}
           hexRadius={24}
           baseAlpha={0.01}
           highlightAlpha={0.25}
           highlightRadius={100}
-        />
+        /> */}
 
         {tiles.length === 0 && (
           <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
