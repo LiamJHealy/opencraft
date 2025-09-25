@@ -40,8 +40,6 @@ const CELEBRATION_TAGLINES = [
   "New recipe unlocked!",
 ];
 
-
-
 /* ---------- Rising emoji burst (center → up & fade) ---------- */
 
 function RisingEmojiParticle({
