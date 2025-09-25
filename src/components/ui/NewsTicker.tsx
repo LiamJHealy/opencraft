@@ -11,7 +11,7 @@ export function NewsTicker({
   speedSec = 28,
   bottomOffset = 40,   // ← raise the line off the bottom (px)
   leftGutter = 100,     // ← keep away from edges (px)
-  rightGutter = 72,
+  rightGutter = 150,
 }: {
   isDark: boolean;
   speedSec?: number;
