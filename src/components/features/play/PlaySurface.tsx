@@ -12,6 +12,7 @@ import { useTheme } from "@/components/providers/ThemeProvider";
 import HexGridCanvas from "@/components/ui/HexGridCanvas";
 import { TargetTile } from "@/components/features/play/TargetTile";
 import type { DailyPayload } from "@/lib/daily";
+import { createPortal } from "react-dom";
 
 type ElementRow = { id: number; name: string; emoji?: string };
 
@@ -41,6 +42,433 @@ const CELEBRATION_TAGLINES = [
 
 
 
+/* ---------- Rising emoji burst (center → up & fade) ---------- */
+
+function RisingEmojiParticle({
+  emoji,
+  angleDeg,
+  distance,
+  duration = 1100,
+  delay = 0,
+  onDone,
+}: {
+  emoji: string;
+  angleDeg: number;     // -120..-60 is a nice “upwards cone”
+  distance: number;     // px
+  duration?: number;    // ms
+  delay?: number;       // ms
+  onDone?: () => void;
+}) {
+  const [mounted, setMounted] = useState(false);
+  const rad = (angleDeg * Math.PI) / 180;
+  const dx = Math.cos(rad) * distance;
+  const dy = Math.sin(rad) * distance; // negative is up
+
+  useEffect(() => {
+    const m = setTimeout(() => setMounted(true), 10);
+    const d = setTimeout(() => onDone?.(), delay + duration + 60);
+    return () => { clearTimeout(m); clearTimeout(d); };
+  }, [delay, duration, onDone]);
+
+  return (
+    <span
+      aria-hidden
+      className="absolute left-1/2 top-1/2 pointer-events-none select-none will-change-transform"
+      style={{
+        transform: mounted
+          ? `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.9) rotate(${dx * 0.06}deg)`
+          : "translate(-50%, -50%) scale(1)",
+        opacity: mounted ? 0 : 1,
+        transitionProperty: "transform, opacity",
+        transitionDuration: `${duration}ms`,
+        transitionTimingFunction: "cubic-bezier(0.2, 0.7, 0.2, 1)",
+        transitionDelay: `${delay}ms`,
+        fontSize: "clamp(24px, 5vw, 42px)",
+        textShadow: "0 2px 8px rgba(0,0,0,0.25)",
+      }}
+    >
+      {emoji}
+    </span>
+  );
+}
+
+function EmojiFlight({
+  emoji,
+  count = 15,
+  spreadDeg = 90,
+  minDist = 100,
+  maxDist = 300,
+  minDelay = 0,
+  maxDelay = 150,
+  duration = 1100,
+}: {
+  emoji: string;
+  count?: number;
+  spreadDeg?: number;
+  minDist?: number;
+  maxDist?: number;
+  minDelay?: number;
+  maxDelay?: number;
+  duration?: number;
+}) {
+  const parts = useMemo(() => {
+    return Array.from({ length: count }, () => {
+      const angleDeg = -90 + (Math.random() - 0.5) * spreadDeg; // centered on up
+      const distance = minDist + Math.random() * (maxDist - minDist);
+      const delay = minDelay + Math.random() * (maxDelay - minDelay);
+      return { angleDeg, distance, delay };
+    });
+  }, [count, spreadDeg, minDist, maxDist, minDelay, maxDelay]);
+
+  return (
+    <div className="fixed inset-0 z-[9999] pointer-events-none">
+      {parts.map((p, i) => (
+        <RisingEmojiParticle
+          key={i}
+          emoji={emoji}
+          angleDeg={p.angleDeg}
+          distance={p.distance}
+          delay={p.delay}
+          duration={duration}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ---------- Drag & drop Celebration Overlay ---------- */
+
+export function CelebrationOverlay({
+  emoji, word, tagline, isDark, onClose,
+}: {
+  emoji: string;
+  word: string;
+  tagline: string;
+  isDark: boolean;
+  onClose: () => void;
+}) {
+  const [show, setShow] = useState(false);
+
+  // Drag state (offset from center in px)
+  const [dragging, setDragging] = useState(false);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const dragRef = useRef({
+    active: false,
+    pointerId: 0 as number,
+    startX: 0,
+    startY: 0,
+    startOffsetX: 0,
+    startOffsetY: 0,
+  });
+
+  // Auto-dismiss: pause while dragging
+  const dismissTimer = useRef<number | null>(null);
+  const startDismiss = () => {
+    if (dismissTimer.current) window.clearTimeout(dismissTimer.current);
+    dismissTimer.current = window.setTimeout(onClose, 1800);
+  };
+  const cancelDismiss = () => {
+    if (dismissTimer.current) {
+      window.clearTimeout(dismissTimer.current);
+      dismissTimer.current = null;
+    }
+  };
+
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setShow(true));
+    startDismiss();
+    return () => { cancelAnimationFrame(raf); cancelDismiss(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onClose]);
+
+  // Clamp to viewport with padding so it can't be dragged completely off-screen
+  function clampToViewport(nx: number, ny: number) {
+    const pad = 24;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    // Since our base is at center (50%, 50%), clamp relative offsets
+    const maxX = (vw / 2) - pad;
+    const maxY = (vh / 2) - pad;
+    return {
+      x: Math.max(-maxX, Math.min(nx, maxX)),
+      y: Math.max(-maxY, Math.min(ny, maxY)),
+    };
+  }
+
+  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const id = e.pointerId;
+    dragRef.current = {
+      active: true,
+      pointerId: id,
+      startX: e.clientX,
+      startY: e.clientY,
+      startOffsetX: offset.x,
+      startOffsetY: offset.y,
+    };
+    setDragging(true);
+    cancelDismiss();
+    // capture to get move/up even if pointer leaves the element
+    (e.currentTarget as HTMLElement).setPointerCapture?.(id);
+  }
+
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!dragRef.current.active || e.pointerId !== dragRef.current.pointerId) return;
+    e.preventDefault();
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+    const next = clampToViewport(dragRef.current.startOffsetX + dx, dragRef.current.startOffsetY + dy);
+    setOffset(next);
+  }
+
+  function onPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    if (!dragRef.current.active || e.pointerId !== dragRef.current.pointerId) return;
+    dragRef.current.active = false;
+    setDragging(false);
+    (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+    // restart auto-dismiss after drop
+    startDismiss();
+  }
+
+  const body = (
+    <div className="fixed inset-0 z-[9999] pointer-events-none">
+      {/* subtle backdrop to lift the moment */}
+      <div className="absolute inset-0 bg-black/20" />
+
+      {/* Rising emoji particles from center */}
+      <EmojiFlight emoji={emoji} />
+
+      {/* Draggable popup wrapper */}
+      <div
+        className={[
+          "absolute left-1/2 top-1/2",
+          "flex items-center justify-center",
+          "transition-opacity duration-300",
+          show ? "opacity-100" : "opacity-0",
+        ].join(" ")}
+        style={{
+          transform: `translate(calc(-50% + ${offset.x}px), calc(-50% + ${offset.y}px))`,
+        }}
+        aria-live="polite"
+      >
+        <div
+          className={[
+            "relative pointer-events-auto select-none",
+            "flex flex-col items-center gap-3 text-center",
+            "rounded-3xl px-4 py-3",
+            "transition-all duration-200 will-change-transform",
+            dragging ? "scale-[1.02] drop-shadow-2xl" : "scale-100 drop-shadow-xl",
+            isDark ? "text-slate-100" : "text-slate-900",
+          ].join(" ")}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          role="dialog"
+          aria-label="Celebration"
+        >
+          <span className="text-7xl md:text-8xl drop-shadow" aria-hidden>
+            {emoji}
+          </span>
+
+          <span
+            className={[
+              "rounded-full px-4 py-2 text-sm md:text-base font-extrabold uppercase tracking-[0.35em] shadow-xl",
+              isDark ? "bg-emerald-400/95 text-slate-900" : "bg-emerald-500/95 text-white",
+            ].join(" ")}
+          >
+            {tagline}
+          </span>
+
+          <span
+            className={[
+              "rounded-full px-5 py-2 text-xl md:text-2xl font-bold shadow-xl",
+              isDark ? "bg-slate-900/80 text-white" : "bg-white/95 text-slate-800",
+            ].join(" ")}
+          >
+            {word}
+          </span>
+
+          {/* Drag affordance */}
+          <span
+            className={[
+              "mt-1 text-[0.65rem] uppercase tracking-[0.25em]",
+              isDark ? "text-white/50" : "text-slate-500",
+            ].join(" ")}
+          >
+            Drag to move
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+
+  return createPortal(body, document.body);
+}
+
+
+
+
+// function CelebrationOverlay({
+//   emoji, word, tagline, isDark, onClose,
+// }: {
+//   emoji: string;
+//   word: string;
+//   tagline: string;
+//   isDark: boolean;
+//   onClose: () => void;
+// }) {
+//   const [show, setShow] = useState(false);
+//   useEffect(() => {
+//   const raf = requestAnimationFrame(() => setShow(true));
+//     const t = setTimeout(onClose, 1800);
+//     return () => { cancelAnimationFrame(raf); clearTimeout(t); };
+// }, [onClose]);
+
+//   const body = (
+//     <div className="fixed inset-0 z-[9999] pointer-events-none flex items-center justify-center">
+//       {/* subtle backdrop to lift the moment */}
+//       <div className="absolute inset-0 bg-black/20" />
+
+//       <div
+//         className={[
+//           "relative pointer-events-none flex flex-col items-center gap-3 text-center",
+//           "transition-all duration-300 will-change-transform",
+//           show ? "opacity-100 scale-100" : "opacity-0 scale-90",
+//           isDark ? "text-slate-100" : "text-slate-900",
+//         ].join(" ")}
+//         aria-live="polite"
+//       >
+//         <span className="text-7xl md:text-8xl drop-shadow" aria-hidden>
+//           {emoji}
+//         </span>
+
+//         <span
+//           className={[
+//             "rounded-full px-4 py-2 text-sm md:text-base font-extrabold uppercase tracking-[0.35em] shadow-xl",
+//             isDark ? "bg-emerald-400/95 text-slate-900" : "bg-emerald-500/95 text-white",
+//           ].join(" ")}
+//         >
+//           {tagline}
+//         </span>
+
+//         <span
+//           className={[
+//             "rounded-full px-5 py-2 text-xl md:text-2xl font-bold shadow-xl",
+//             isDark ? "bg-slate-900/80 text-white" : "bg-white/95 text-slate-800",
+//           ].join(" ")}
+//         >
+//           {word}
+//         </span>
+//       </div>
+//     </div>
+//   );
+
+//   return createPortal(body, document.body);
+// }
+
+// function RisingEmojiParticle({
+//   emoji,
+//   angleDeg,
+//   distance,
+//   duration = 1100,
+//   delay = 0,
+//   onDone,
+// }: {
+//   emoji: string;
+//   angleDeg: number;     // e.g. -60 .. -120 (mostly upward)
+//   distance: number;     // pixels  (e.g. 140..260)
+//   duration?: number;    // ms
+//   delay?: number;       // ms
+//   onDone?: () => void;
+// }) {
+//   const [mounted, setMounted] = useState(false);
+
+//   // convert polar to cartesian once
+//   const rad = (angleDeg * Math.PI) / 180;
+//   const dx = Math.cos(rad) * distance;
+//   const dy = Math.sin(rad) * distance; // negative for upward
+
+//   useEffect(() => {
+//     const mountTimer = setTimeout(() => setMounted(true), 10);
+//     const doneTimer = setTimeout(() => onDone?.(), delay + duration + 50);
+//     return () => {
+//       clearTimeout(mountTimer);
+//       clearTimeout(doneTimer);
+//     };
+//   }, [delay, duration, onDone]);
+
+//   return (
+//     <span
+//       aria-hidden
+//       className="absolute left-1/2 top-1/2 pointer-events-none select-none will-change-transform"
+//       style={{
+//         transform: mounted
+//           ? `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(0.9) rotate(${dx * 0.06}deg)`
+//           : "translate(-50%, -50%) scale(1)",
+//         opacity: mounted ? 0 : 1,
+//         transitionProperty: "transform, opacity",
+//         transitionDuration: `${duration}ms`,
+//         transitionTimingFunction: "cubic-bezier(0.2, 0.7, 0.2, 1)",
+//         transitionDelay: `${delay}ms`,
+//         fontSize: "clamp(24px, 5vw, 42px)",
+//         textShadow: "0 2px 8px rgba(0,0,0,0.25)",
+//       }}
+//     >
+//       {emoji}
+//     </span>
+//   );
+// }
+
+// function EmojiFlight({
+//   emoji,
+//   count = 7,
+//   spreadDeg = 70,     // width of the cone (centered on straight-up)
+//   minDist = 140,
+//   maxDist = 240,
+//   minDelay = 0,
+//   maxDelay = 150,
+//   duration = 1100,
+// }: {
+//   emoji: string;
+//   count?: number;
+//   spreadDeg?: number;
+//   minDist?: number;
+//   maxDist?: number;
+//   minDelay?: number;
+//   maxDelay?: number;
+//   duration?: number;
+// }) {
+//   // generate random particles once
+//   const parts = useMemo(() => {
+//     const out: { angleDeg: number; distance: number; delay: number }[] = [];
+//     for (let i = 0; i < count; i++) {
+//       // center the cone on -90deg (straight up), with random jitter
+//       const angleDeg =
+//         -90 + (Math.random() - 0.5) * spreadDeg; // e.g. -90 ± 35deg
+//       const distance = minDist + Math.random() * (maxDist - minDist);
+//       const delay = minDelay + Math.random() * (maxDelay - minDelay);
+//       out.push({ angleDeg, distance, delay });
+//     }
+//     return out;
+//   }, [count, spreadDeg, minDist, maxDist, minDelay, maxDelay]);
+
+//   return (
+//     <div className="fixed inset-0 z-[9999] pointer-events-none">
+//       {parts.map((p, i) => (
+//         <RisingEmojiParticle
+//           key={i}
+//           emoji={emoji}
+//           angleDeg={p.angleDeg}
+//           distance={p.distance}
+//           delay={p.delay}
+//           duration={duration}
+//         />
+//       ))}
+//     </div>
+//   );
+// }
 
 // helpers
 function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
@@ -231,7 +659,7 @@ export default function PlaySurface() {
     };
   }, [dailySeed]);
   useEffect(() => {
-    const full = "Drop words to craft combos ✨";
+    const full = "... New words are awaiting discovery ✨";
     let index = 0;
     let direction: 1 | -1 = 1;
     let timer = 0;
@@ -409,7 +837,7 @@ export default function PlaySurface() {
       word: "brewing new word",
       x: mid.x,
       y: mid.y,
-      emoji: "\u{1FA84}",
+      emoji: "⚙️",
       pending: true,
     };
     setTiles((prev) => [
@@ -626,8 +1054,8 @@ export default function PlaySurface() {
                 isDark ? "bg-slate-950/60" : "bg-white/80"
               )}
             >
-              <span className="oc-gradient-text text-xl font-semibold tracking-[0.2em]">
-                {promptText || "Drop words to begin"}
+              <span className="text-xl font-semibold tracking-[0.2em]">
+                {promptText || "..."}
               </span>
               <span
                 className={cn(
@@ -671,7 +1099,7 @@ export default function PlaySurface() {
           </div>
         )}
 
-        {celebration && (
+        {/* {celebration && (
           <div
             className={cn(
               "pointer-events-none absolute z-40 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 text-center oc-celebration",
@@ -700,6 +1128,16 @@ export default function PlaySurface() {
               {celebration.word}
             </span>
           </div>
+        )} */}
+
+        {celebration && (
+          <CelebrationOverlay
+            emoji={celebration.emoji}
+            word={celebration.word}
+            tagline={celebration.tagline}
+            isDark={isDark}
+            onClose={() => setCelebration(null)}
+          />
         )}
 
         <div

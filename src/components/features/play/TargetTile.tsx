@@ -53,7 +53,7 @@ export function TargetTile({
     </span>
   ) : (
     <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/70 px-2 py-0.5 text-xs font-semibold text-slate-500">
-      <span aria-hidden>??</span> Locked
+      <span aria-hidden>🔒</span> Locked
     </span>
   );
 
@@ -103,7 +103,7 @@ export function TargetTile({
           </>
         )}
         {isLocked && (
-          <p className="mt-1.5 text-[0.7rem] italic">? Combine starters to reveal this target.</p>
+          <p className="mt-1.5 text-[0.7rem] italic">Combine starters to reveal this target.</p>
         )}
       </div>
     </div>
