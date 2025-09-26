@@ -11,7 +11,6 @@ export default function ProfilePage() {
   const { isDark, toggleTheme } = useTheme();
 
   // ---------------- PLACEHOLDERS (no session/data yet) ----------------
-  // TODO: replace with real values from your API/session later.
   const avatarEmoji = "🙂";
   const alias = "Adventurer";
   const stats = {
@@ -113,6 +112,7 @@ export default function ProfilePage() {
               </div>
             </section>
 
+           
             {/* Awards */}
             <section className={cx(cardBase, "p-6 sm:p-8")}>
               <div className="mb-4 flex items-center justify-between">
@@ -154,6 +154,49 @@ export default function ProfilePage() {
                 </div>
               )}
             </section>
+
+             {/* Leaderboard */}
+            <section className={cx(cardBase, "p-6 sm:p-8")}>
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-xl font-semibold">Leaderboards</h2>
+                <span className={cx("text-xs uppercase tracking-[0.3em]", isDark ? "text-white/40" : "text-slate-500")}>
+                  {/* GPT TODO: Add button to switch between daily leaderboard and overall leaderboard */}
+                </span>
+              </div>
+
+              {awards.length === 0 ? (
+                <EmptyState
+                  isDark={isDark}
+                  emoji="🥇"
+                  title="No score set yet"
+                  subtitle="Unlock leaderboard by setting a score in todays challenge."
+                />
+              ) : (
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+                  {awards.map((a) => (
+                    <div
+                      key={a.id}
+                      className={cx(
+                        "flex items-center gap-3 rounded-2xl border p-3",
+                        isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50"
+                      )}
+                      title={a.hint || a.title}
+                    >
+                      <div className="grid h-10 w-10 place-items-center rounded-xl text-xl">
+                        <span aria-hidden>{a.emoji ?? "✨"}</span>
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{a.title}</p>
+                        {a.hint && (
+                          <p className={cx("truncate text-xs", isDark ? "text-white/50" : "text-slate-500")}>{a.hint}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
 
             {/* Game History */}
             <section className={cx(cardBase, "p-6 sm:p-8")}>
